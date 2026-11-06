@@ -198,22 +198,15 @@ function handleLogout() {
 }
 
 function showAuthScreen() {
-  dismissInitialLoading();
-  const authScreen = $('auth-screen');
-  if (authScreen) authScreen.style.setProperty('display', 'flex', 'important');
-  const appScreen = $('app-screen');
-  if (appScreen) appScreen.style.setProperty('display', 'none', 'important');
+  $('auth-screen').style.setProperty('display', 'flex', 'important');
+  $('app-screen').style.setProperty('display', 'none', 'important');
 }
 
 function showAppScreen(user) {
-  dismissInitialLoading();
-  const authScreen = $('auth-screen');
-  if (authScreen) authScreen.style.setProperty('display', 'none', 'important');
-  const appScreen = $('app-screen');
-  if (appScreen) appScreen.style.setProperty('display', 'block', 'important');
+  $('auth-screen').style.setProperty('display', 'none', 'important');
+  $('app-screen').style.setProperty('display', 'block', 'important');
   
   $('user-name-display').textContent = user.displayName || user.email;
-  // Carga directamente la vista de viajes de forma inmediata
   showView('trips-view');
   loadTrips();
 }
@@ -1134,52 +1127,19 @@ function setupEventListeners() {
 }
 
 // =====================================================================
-//  INICIALIZACIÓN ULTRA RESISTENTE A MODO INCÓGNITO DE IPHONE
+//  INICIALIZACIÓN LIMPIA (SIN PANTALLAS DE CARGA)
 // =====================================================================
 setupEventListeners();
 
-let authResolved = false;
-
-// 1. Temporizador de rescate: Si Safari en incógnito bloquea Firebase, forzamos la entrada
-const safetyTimer = setTimeout(() => {
-  if (!authResolved) {
-    console.warn("Detectado posible modo incógnito o bloqueo de almacenamiento en Safari.");
-    authResolved = true;
-    dismissInitialLoading();
-    
-    // Si no resolvió usuario, mostramos el login para que pueda entrar
-    if (!currentUser) {
-      showAuthScreen();
-    }
-  }
-}, 1200); // 1.2 segundos máximo
-
-// 2. Escucha de autenticación
-try {
-  onAuthStateChanged(auth, (user) => {
-    authResolved = true;
-    clearTimeout(safetyTimer);
-    dismissInitialLoading();
-
-    if (user) {
-      currentUser = user;
-      showAppScreen(user);
-    } else {
-      currentUser = null;
-      currentTripId = null;
-      currentCategoryId = null;
-      cleanupAllListeners();
-      showAuthScreen();
-    }
-  }, (error) => {
-    console.error("Error en Auth:", error);
-    authResolved = true;
-    clearTimeout(safetyTimer);
-    dismissInitialLoading();
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    currentUser = user;
+    showAppScreen(user);
+  } else {
+    currentUser = null;
+    currentTripId = null;
+    currentCategoryId = null;
+    cleanupAllListeners();
     showAuthScreen();
-  });
-} catch (e) {
-  console.error("Excepción en Auth:", e);
-  dismissInitialLoading();
-  showAuthScreen();
-}
+  }
+});
