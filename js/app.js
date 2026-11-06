@@ -1,12 +1,11 @@
 // =====================================================================
-//  Mi Maleta ✈️ — Completo con Persistencia Fija Local y Sin Parpadeos
+//  Mi Maleta ✈️ — Completo, Optimizado para Móviles y GitHub Pages
 // =====================================================================
 
 import { auth, db, googleProvider } from './firebase-init.js';
 import {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  signInWithPopup, signOut, updateProfile,
-  setPersistence, browserLocalPersistence
+  signInWithPopup, signOut, updateProfile
 } from 'firebase/auth';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, query, where,
@@ -59,7 +58,9 @@ const $ = (id) => document.getElementById(id);
 //  UI HELPERS
 // =====================================================================
 function showView(viewId) {
-  $('initial-loading-screen').classList.add('hidden');
+  const initLoading = $('initial-loading-screen');
+  if (initLoading) initLoading.style.setProperty('display', 'none', 'important');
+  
   ['trips-view', 'trip-detail-view', 'category-detail-view', 'loading-screen'].forEach(id => {
     $(id).classList.add('hidden');
   });
@@ -982,7 +983,6 @@ function removePhotoPreview() {
 //  EVENT LISTENERS
 // =====================================================================
 function setupEventListeners() {
-  // --- AUTH ---
   $('login-btn').addEventListener('click', handleLogin);
   $('login-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
   $('register-btn').addEventListener('click', handleRegister);
@@ -1000,7 +1000,6 @@ function setupEventListeners() {
     $('login-error').classList.add('hidden');
   });
 
-  // --- NAVEGACIÓN Y PESTAÑAS ---
   $('back-to-trips').addEventListener('click', () => {
     currentTripId = null;
     currentCategoryId = null;
@@ -1015,7 +1014,6 @@ function setupEventListeners() {
   $('tab-categories-btn').addEventListener('click', () => switchTripTab('categories'));
   $('tab-shopping-btn').addEventListener('click', () => switchTripTab('shopping'));
 
-  // --- TRIPS ---
   $('add-trip-btn').addEventListener('click', () => openTripModal());
   $('trip-form').addEventListener('submit', (e) => { e.preventDefault(); saveTripForm(); });
   $('close-trip-modal').addEventListener('click', () => hideModal('trip-modal'));
@@ -1031,7 +1029,6 @@ function setupEventListeners() {
     if (card) openTrip(card.dataset.tripId);
   });
 
-  // --- CATEGORIES ---
   $('add-category-btn').addEventListener('click', () => openCategoryModal());
   $('category-form').addEventListener('submit', (e) => { e.preventDefault(); saveCategoryForm(); });
   $('close-category-modal').addEventListener('click', () => hideModal('category-modal'));
@@ -1069,7 +1066,6 @@ function setupEventListeners() {
     if (card) openCategory(card.dataset.catId);
   });
 
-  // --- ITEMS & LISTA DE COMPRAS ---
   $('add-item-btn').addEventListener('click', () => openItemModal());
   $('item-form').addEventListener('submit', (e) => { e.preventDefault(); saveItemForm(); });
   $('close-item-modal').addEventListener('click', () => hideModal('item-modal'));
@@ -1113,7 +1109,6 @@ function setupEventListeners() {
   $('items-container').addEventListener('click', handleItemActions);
   $('shopping-list-container').addEventListener('click', handleItemActions);
 
-  // --- MODALES CONFIRMAR / ESC ---
   $('delete-confirm').addEventListener('click', () => {
     hideModal('delete-modal');
     if (deleteCallback) {
@@ -1140,32 +1135,35 @@ function setupEventListeners() {
 }
 
 // =====================================================================
-//  INICIALIZACIÓN CON PERSISTENCIA FIJA
+//  INICIALIZACIÓN RÁPIDA (CON TEMPORIZADOR DE SEGURIDAD PARA MÓVILES)
 // =====================================================================
 setupEventListeners();
 
-// Forzar sesión persistente local para que el móvil recuerde la cuenta siempre
-setPersistence(auth, browserLocalPersistence).then(() => {
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      currentUser = user;
-      showAppScreen(user);
-    } else {
-      currentUser = null;
-      currentTripId = null;
-      currentCategoryId = null;
-      cleanupAllListeners();
-      showAuthScreen();
-    }
-  });
-}).catch((err) => {
-  console.error("Error persistencia:", err);
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      currentUser = user;
-      showAppScreen(user);
-    } else {
-      showAuthScreen();
-    }
-  });
+let authResolved = false;
+
+// Fallback de seguridad: 2.5s máximo para no congelar la pantalla nunca
+setTimeout(() => {
+  if (!authResolved) {
+    const initLoading = $('initial-loading-screen');
+    if (initLoading) initLoading.style.setProperty('display', 'none', 'important');
+    if (!currentUser) showAuthScreen();
+  }
+}, 2500);
+
+onAuthStateChanged(auth, (user) => {
+  authResolved = true;
+  
+  const initLoading = $('initial-loading-screen');
+  if (initLoading) initLoading.style.setProperty('display', 'none', 'important');
+
+  if (user) {
+    currentUser = user;
+    showAppScreen(user);
+  } else {
+    currentUser = null;
+    currentTripId = null;
+    currentCategoryId = null;
+    cleanupAllListeners();
+    showAuthScreen();
+  }
 });
