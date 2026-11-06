@@ -5,28 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mi Maleta ✈️</title>
 
-  <!-- Anti-caché -->
+  <!-- Anti-caché sin romper IndexedDB -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
-  <!-- Optimización iOS / PWA (Elimina la pantalla negra de arranque) -->
+  <!-- Configuración PWA / iPhone -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f46e5">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <!-- 'default' hace que iOS use el color de fondo de la app en vez de pantalla negra -->
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Mi Maleta">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧳</text></svg>">
   <link rel="canonical" href="./">
 
-  <!-- Conexión anticipada a servidores para rascar 2 segundos -->
-  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <!-- Fuentes y Tailwind -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -50,16 +46,13 @@
   </script>
 
   <style>
-    /* Fondo instantáneo para que iOS nunca pinte negro */
     html, body {
       background-color: #f9fafb !important;
       margin: 0;
       padding: 0;
       -webkit-tap-highlight-color: transparent;
     }
-    
     #auth-screen { display: none !important; }
-
     .modal-enter { animation: modalIn 0.25s ease-out; }
     @keyframes modalIn {
       from { opacity: 0; transform: scale(0.95) translateY(10px); }
@@ -86,16 +79,17 @@
 </head>
 <body class="bg-gray-50 min-h-screen font-sans select-none" style="background-color: #f9fafb;">
 
-  <!-- ==================== PANTALLA INICIAL ULTRA LIGERA (Carga en 0.1s) ==================== -->
+  <!-- PANTALLA INICIAL DE CARGA -->
   <div id="initial-loading-screen" style="position: fixed; inset: 0; background-color: #f9fafb; display: flex; align-items: center; justify-content: center; z-index: 9999;">
     <div style="text-align: center;">
-      <div style="font-size: 54px; margin-bottom: 12px; animation: pulse 1.5s infinite ease-in-out;">🧳</div>
-      <div class="w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto" style="width: 28px; height: 28px; border: 3px solid #e0e7ff; border-top-color: #4f46e5; border-radius: 50%;"></div>
-      <p style="color: #6b7280; margin-top: 12px; font-size: 13px; font-weight: 500;">Mi Maleta</p>
+      <div style="font-size: 54px; margin-bottom: 12px;">🧳</div>
+      <div style="width: 28px; height: 28px; border: 3px solid #e0e7ff; border-top-color: #4f46e5; border-radius: 50%; margin: 0 auto; animation: spin 1s linear infinite;"></div>
+      <p style="color: #6b7280; margin-top: 12px; font-size: 13px; font-weight: 500;">Cargando Mi Maleta...</p>
     </div>
   </div>
+  <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 
-  <!-- ==================== PANTALLA DE AUTH ==================== -->
+  <!-- PANTALLA DE AUTH -->
   <div id="auth-screen" class="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 modal-enter">
       <div class="text-center mb-8">
@@ -169,7 +163,7 @@
     </div>
   </div>
 
-  <!-- ==================== PANTALLA PRINCIPAL ==================== -->
+  <!-- PANTALLA PRINCIPAL -->
   <div id="app-screen" class="hidden min-h-screen">
     <nav class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
       <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -183,13 +177,6 @@
         </div>
       </div>
     </nav>
-
-    <div id="loading-screen" class="hidden flex items-center justify-center py-32">
-      <div class="text-center">
-        <div class="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
-        <p class="text-gray-500 mt-4 text-sm">Cargando tus viajes...</p>
-      </div>
-    </div>
 
     <main class="max-w-4xl mx-auto px-4 py-6">
 
@@ -490,15 +477,13 @@
     </div>
   </div>
 
-  <!-- Carga limpia de JS -->
-  <script>
-    const s = document.createElement('script');
-    s.type = 'module';
-    s.src = 'js/app.js?v=' + Date.now();
-    document.body.appendChild(s);
+  <!-- Carga directa y estable (sin Date.now() que corrompa la sesión de iOS) -->
+  <script type="module" src="js/app.js"></script>
 
+  <!-- Service Worker estable (se registra una sola vez de forma nativa) -->
+  <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js?t=' + Date.now());
+      navigator.serviceWorker.register('sw.js');
     }
   </script>
 </body>

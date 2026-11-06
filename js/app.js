@@ -1,5 +1,5 @@
 // =====================================================================
-//  Mi Maleta ✈️ — Completo, Optimizado para Móviles y GitHub Pages
+//  Mi Maleta ✈️ — Versión Ultrarrápida y Estable para iOS / Safari / PC
 // =====================================================================
 
 import { auth, db, googleProvider } from './firebase-init.js';
@@ -54,14 +54,20 @@ const userCol = (colName) => collection(db, 'users', currentUser.uid, colName);
 const userDoc = (colName, docId) => doc(db, 'users', currentUser.uid, colName, docId);
 const $ = (id) => document.getElementById(id);
 
+// Quita la pantalla de carga inicial de forma segura e inmediata
+function dismissInitialLoading() {
+  const initLoading = $('initial-loading-screen');
+  if (initLoading) {
+    initLoading.style.setProperty('display', 'none', 'important');
+  }
+}
+
 // =====================================================================
 //  UI HELPERS
 // =====================================================================
 function showView(viewId) {
-  const initLoading = $('initial-loading-screen');
-  if (initLoading) initLoading.style.setProperty('display', 'none', 'important');
-  
-  ['trips-view', 'trip-detail-view', 'category-detail-view', 'loading-screen'].forEach(id => {
+  dismissInitialLoading();
+  ['trips-view', 'trip-detail-view', 'category-detail-view'].forEach(id => {
     $(id).classList.add('hidden');
   });
   $(viewId).classList.remove('hidden');
@@ -192,28 +198,23 @@ function handleLogout() {
 }
 
 function showAuthScreen() {
-  const initLoading = $('initial-loading-screen');
-  if (initLoading) initLoading.style.setProperty('display', 'none', 'important');
-  
+  dismissInitialLoading();
   const authScreen = $('auth-screen');
   if (authScreen) authScreen.style.setProperty('display', 'flex', 'important');
-  
   const appScreen = $('app-screen');
   if (appScreen) appScreen.style.setProperty('display', 'none', 'important');
 }
 
 function showAppScreen(user) {
-  const initLoading = $('initial-loading-screen');
-  if (initLoading) initLoading.style.setProperty('display', 'none', 'important');
-  
+  dismissInitialLoading();
   const authScreen = $('auth-screen');
   if (authScreen) authScreen.style.setProperty('display', 'none', 'important');
-  
   const appScreen = $('app-screen');
   if (appScreen) appScreen.style.setProperty('display', 'block', 'important');
   
   $('user-name-display').textContent = user.displayName || user.email;
-  showView('loading-screen');
+  // Carga directamente la vista de viajes de forma inmediata
+  showView('trips-view');
   loadTrips();
 }
 
@@ -239,12 +240,10 @@ function loadTrips() {
     const trips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     trips.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     renderTrips(trips);
-    showView('trips-view');
     trips.forEach(trip => loadTripItemsForProgress(trip.id));
   }, (err) => {
     console.error('Error loading trips:', err);
     showToast('Error al cargar viajes', 'error');
-    showView('trips-view');
   });
 }
 
@@ -382,7 +381,7 @@ async function deleteTrip(tripId) {
 }
 
 // =====================================================================
-//  DETALLE DE VIAJE (CON PESTAÑA LISTA DE COMPRA)
+//  DETALLE DE VIAJE
 // =====================================================================
 function switchTripTab(tabName) {
   activeTripTab = tabName;
@@ -468,7 +467,7 @@ function updateTripDetailProgress(items) {
 }
 
 // =====================================================================
-//  RENDER LISTA DE LA COMPRA CENTRALIZADA
+//  RENDER LISTA DE COMPRAS
 // =====================================================================
 function renderShoppingList(items) {
   const shoppingItems = items.filter(i => i.toBuy);
@@ -677,7 +676,7 @@ async function deleteCategory(catId) {
 }
 
 // =====================================================================
-//  DETALLE DE CATEGORÍA Y SUBGRUPOS (INSENSITIVE A MAYÚSCULAS/MINÚSCULAS)
+//  DETALLE DE CATEGORÍA
 // =====================================================================
 function openCategory(catId) {
   currentCategoryId = catId;
@@ -1135,26 +1134,24 @@ function setupEventListeners() {
 }
 
 // =====================================================================
-//  INICIALIZACIÓN RÁPIDA (CON TEMPORIZADOR DE SEGURIDAD PARA MÓVILES)
+//  INICIALIZACIÓN ULTRA RÁPIDA (CON DESBLOQUEO INMEDIATO)
 // =====================================================================
 setupEventListeners();
 
 let authResolved = false;
 
-// Fallback de seguridad: 2.5s máximo para no congelar la pantalla nunca
+// Si por cualquier motivo Firebase tarda más de 1.8 segundos, quitamos la pantalla de carga
 setTimeout(() => {
   if (!authResolved) {
-    const initLoading = $('initial-loading-screen');
-    if (initLoading) initLoading.style.setProperty('display', 'none', 'important');
+    dismissInitialLoading();
     if (!currentUser) showAuthScreen();
   }
-}, 2500);
+}, 1800);
 
+// Escucha nativa de sesión: responde al instante desde la memoria del teléfono
 onAuthStateChanged(auth, (user) => {
   authResolved = true;
-  
-  const initLoading = $('initial-loading-screen');
-  if (initLoading) initLoading.style.setProperty('display', 'none', 'important');
+  dismissInitialLoading();
 
   if (user) {
     currentUser = user;
