@@ -1,5 +1,5 @@
 // =====================================================================
-//  Mi Maleta ✈️ — Con PWA, Subcategorías y Lista de la Compra Central
+//  Mi Maleta ✈️ — Completo con PWA, Lista de Compras y Grupos Sin Case-Sensitivity
 // =====================================================================
 
 import { auth, db, googleProvider } from './firebase-init.js';
@@ -40,7 +40,7 @@ let currentTripData = null;
 let currentCategoryData = null;
 let allTripCategories = [];
 let allTripItems = {};
-let activeTripTab = 'categories'; // 'categories' o 'shopping'
+let activeTripTab = 'categories';
 let unsubTrips = null;
 let unsubCategories = null;
 let unsubTripItems = null;
@@ -458,7 +458,6 @@ function renderShoppingList(items) {
   const shoppingItems = items.filter(i => i.toBuy);
   const pendingCount = shoppingItems.filter(i => !i.packed).length;
 
-  // Actualizar contador del badge en la pestaña
   const badge = $('shopping-badge-count');
   if (pendingCount > 0) {
     badge.textContent = pendingCount;
@@ -478,7 +477,6 @@ function renderShoppingList(items) {
   }
   empty.classList.add('hidden');
 
-  // Ordenar: pendientes primero, luego comprados
   shoppingItems.sort((a, b) => (a.packed === b.packed ? 0 : a.packed ? 1 : -1));
 
   container.innerHTML = shoppingItems.map(item => {
@@ -663,7 +661,7 @@ async function deleteCategory(catId) {
 }
 
 // =====================================================================
-//  DETALLE DE CATEGORÍA Y ELEMENTOS
+//  DETALLE DE CATEGORÍA Y SUBGRUPOS (INSENSITIVE A MAYÚSCULAS/MINÚSCULAS)
 // =====================================================================
 function openCategory(catId) {
   currentCategoryId = catId;
@@ -687,13 +685,27 @@ function updateCategoryDetailProgress(items) {
   $('category-detail-progress-text').textContent = `${packed} / ${total} empacados`;
 }
 
+// Sugerencias sin duplicados por mayúsculas
 function updateSubcategoriesDatalist(items) {
   const datalist = $('subcategories-datalist');
   if (!datalist) return;
-  const subcats = [...new Set(items.map(i => i.subcategory).filter(Boolean))];
-  datalist.innerHTML = subcats.map(sub => `<option value="${sub}">`).join('');
+  const uniqueMap = new Map();
+  items.forEach(i => {
+    if (i.subcategory && i.subcategory.trim()) {
+      const clean = i.subcategory.trim();
+      const key = clean.toLowerCase();
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase());
+      }
+    }
+  });
+
+  datalist.innerHTML = Array.from(uniqueMap.values())
+    .map(sub => `<option value="${sub}">`)
+    .join('');
 }
 
+// RENDER AGRUPADO: Ignora mayúsculas/minúsculas y las une en el mismo bloque
 function renderItems(items) {
   const container = $('items-container');
   const empty = $('items-empty');
@@ -706,13 +718,27 @@ function renderItems(items) {
 
   const groups = {};
   items.forEach(item => {
-    const groupName = (item.subcategory && item.subcategory.trim()) || 'General / Varios';
-    if (!groups[groupName]) groups[groupName] = [];
-    groups[groupName].push(item);
+    const raw = (item.subcategory && item.subcategory.trim()) || '';
+    let groupKey = 'general';
+    let displayTitle = 'General / Varios';
+
+    if (raw) {
+      // Normalizamos a minúsculas como clave
+      groupKey = raw.toLowerCase();
+      // Mostramos siempre con la primera letra en mayúscula
+      displayTitle = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+    }
+
+    if (!groups[groupKey]) {
+      groups[groupKey] = { title: displayTitle, items: [] };
+    }
+    groups[groupKey].items.push(item);
   });
 
   let html = '';
-  for (const [groupName, groupItems] of Object.entries(groups)) {
+  for (const group of Object.values(groups)) {
+    const groupName = group.title;
+    const groupItems = group.items;
     groupItems.sort((a, b) => (a.packed === b.packed ? 0 : a.packed ? 1 : -1));
     const packedCount = groupItems.filter(i => i.packed).length;
 
@@ -1047,7 +1073,6 @@ function setupEventListeners() {
   });
   $('item-remove-photo').addEventListener('click', removePhotoPreview);
 
-  // Delegación de eventos para checkboxes y fotos tanto en categorías como en lista de compras
   const handleItemActions = (e) => {
     const cb = e.target.closest('.item-packed-cb');
     if (cb) {
