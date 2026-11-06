@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mi Maleta ✈️</title>
+
+  <!-- Configuración PWA / Móvil -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mi Maleta">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧳</text></svg>">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js",
+      "firebase/storage": "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js"
+    }
+  }
+  </script>
+  <style>
+    .modal-enter { animation: modalIn 0.25s ease-out; }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .progress-bar { transition: width 0.5s ease-in-out; }
+    input[type="checkbox"] { accent-color: #4f46e5; }
+    .toast-enter { animation: toastIn 0.3s ease-out; }
+    .toast-exit { animation: toastOut 0.3s ease-in forwards; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(20px); }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans select-none">
+
+  <!-- ==================== PANTALLA DE AUTH ==================== -->
+  <div id="auth-screen" class="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 modal-enter">
+      <div class="text-center mb-8">
+        <div class="text-5xl mb-3">🧳✈️</div>
+        <h1 class="text-3xl font-extrabold text-gray-900">Mi Maleta</h1>
+        <p class="text-gray-500 mt-1">Organiza tus viajes sin estrés</p>
+      </div>
+
+      <div id="login-view">
+        <div id="login-error" class="hidden bg-red-50 text-red-600 text-sm rounded-xl p-3 mb-4"></div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+            <input id="login-email" type="email" placeholder="tu@correo.com"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+            <input id="login-password" type="password" placeholder="••••••••"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+          </div>
+          <button id="login-btn"
+            class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition active:scale-[0.98]">
+            Iniciar sesión
+          </button>
+        </div>
+        <div class="flex items-center my-5">
+          <div class="flex-1 h-px bg-gray-200"></div>
+          <span class="px-3 text-sm text-gray-400">o</span>
+          <div class="flex-1 h-px bg-gray-200"></div>
+        </div>
+        <button id="google-login-btn"
+          class="w-full py-3 border border-gray-200 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition flex items-center justify-center gap-3 active:scale-[0.98]">
+          <svg class="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Continuar con Google
+        </button>
+        <p class="text-center text-sm text-gray-500 mt-6">
+          ¿No tienes cuenta?
+          <button id="show-register" class="text-indigo-600 font-semibold hover:underline">Regístrate</button>
+        </p>
+      </div>
+
+      <div id="register-view" class="hidden">
+        <div id="register-error" class="hidden bg-red-50 text-red-600 text-sm rounded-xl p-3 mb-4"></div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+            <input id="register-name" type="text" placeholder="Tu nombre"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
+            <input id="register-email" type="email" placeholder="tu@correo.com"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+            <input id="register-password" type="password" placeholder="Mínimo 6 caracteres"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+          </div>
+          <button id="register-btn"
+            class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition active:scale-[0.98]">
+            Crear cuenta
+          </button>
+        </div>
+        <p class="text-center text-sm text-gray-500 mt-6">
+          ¿Ya tienes cuenta?
+          <button id="show-login" class="text-indigo-600 font-semibold hover:underline">Inicia sesión</button>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PANTALLA PRINCIPAL ==================== -->
+  <div id="app-screen" class="hidden min-h-screen">
+    <!-- Navbar -->
+    <nav class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
+      <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+        <h1 class="text-xl font-bold text-gray-900 flex items-center gap-2">🧳 Mi Maleta</h1>
+        <div class="flex items-center gap-3">
+          <span id="user-name-display" class="text-sm text-gray-600 hidden sm:inline"></span>
+          <button id="logout-btn"
+            class="text-sm text-gray-500 hover:text-red-500 font-medium transition px-3 py-1.5 rounded-lg hover:bg-red-50">
+            Salir
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Loading -->
+    <div id="loading-screen" class="flex items-center justify-center py-32">
+      <div class="text-center">
+        <div class="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
+        <p class="text-gray-500 mt-4">Cargando tus viajes...</p>
+      </div>
+    </div>
+
+    <main class="max-w-4xl mx-auto px-4 py-6">
+
+      <!-- ===== VISTA: MIS VIAJES ===== -->
+      <div id="trips-view" class="hidden fade-in">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-2xl font-bold text-gray-900">Mis Viajes</h2>
+          <button id="add-trip-btn"
+            class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition flex items-center gap-2 active:scale-[0.97] shadow-lg shadow-indigo-200">
+            <span class="text-lg leading-none">+</span> Nuevo viaje
+          </button>
+        </div>
+        <div id="trips-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        <div id="trips-empty" class="hidden text-center py-20">
+          <div class="text-6xl mb-4">🌍</div>
+          <h3 class="text-xl font-semibold text-gray-700">No tienes viajes aún</h3>
+          <p class="text-gray-500 mt-2">Crea tu primer viaje para empezar a organizar tu maleta</p>
+        </div>
+      </div>
+
+      <!-- ===== VISTA: DETALLE DE VIAJE ===== -->
+      <div id="trip-detail-view" class="hidden fade-in">
+        <button id="back-to-trips" class="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium mb-4 transition">
+          ← Volver a mis viajes
+        </button>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <div class="flex items-start justify-between">
+            <div>
+              <h2 id="trip-detail-name" class="text-2xl font-bold text-gray-900"></h2>
+              <p id="trip-detail-info" class="text-gray-500 mt-1"></p>
+            </div>
+            <div class="flex gap-2">
+              <button id="edit-trip-btn" class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition" title="Editar">✏️</button>
+              <button id="delete-trip-btn" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition" title="Eliminar">🗑️</button>
+            </div>
+          </div>
+          <div class="mt-4">
+            <div class="flex justify-between text-sm text-gray-500 mb-1.5">
+              <span>Progreso general de equipaje</span>
+              <span id="trip-detail-progress-text">0%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+              <div id="trip-detail-progress-bar" class="bg-indigo-600 h-2.5 rounded-full progress-bar" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pestañas de Navegación del Viaje (Categorías vs Lista de Compras) -->
+        <div class="flex border-b border-gray-200 mb-6">
+          <button id="tab-categories-btn" class="py-3 px-5 border-b-2 border-indigo-600 text-indigo-600 font-bold text-sm sm:text-base flex items-center gap-2 transition">
+            <span>📂</span> Categorías
+          </button>
+          <button id="tab-shopping-btn" class="py-3 px-5 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm sm:text-base flex items-center gap-2 transition">
+            <span>🛒</span> Lista de la Compra
+            <span id="shopping-badge-count" class="hidden text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">0</span>
+          </button>
+        </div>
+
+        <!-- Pestaña 1: Vista de Categorías -->
+        <div id="trip-categories-tab-content">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">Categorías de equipaje</h3>
+            <button id="add-category-btn"
+              class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition flex items-center gap-2 active:scale-[0.97] text-sm shadow-sm">
+              <span class="text-base leading-none">+</span> Categoría
+            </button>
+          </div>
+          <div id="categories-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+          <div id="categories-empty" class="hidden text-center py-16">
+            <div class="text-5xl mb-4">📂</div>
+            <h3 class="text-lg font-semibold text-gray-700">Sin categorías</h3>
+            <p class="text-gray-500 mt-1">Añade categorías como Ropa, Aseo, Tecnología...</p>
+          </div>
+        </div>
+
+        <!-- Pestaña 2: Vista de Lista de la Compra Centralizada -->
+        <div id="trip-shopping-tab-content" class="hidden">
+          <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 mb-5 flex items-center justify-between">
+            <div>
+              <h4 class="font-bold text-amber-900 text-sm sm:text-base flex items-center gap-1.5">
+                <span>🛒</span> Artículos pendientes de comprar
+              </h4>
+              <p class="text-xs text-amber-700 mt-0.5">Tacha los artículos que vayas comprando directamente desde aquí.</p>
+            </div>
+            <span id="shopping-tab-summary" class="text-xs sm:text-sm font-semibold bg-amber-200/70 text-amber-900 px-3 py-1 rounded-full">
+              0 pendientes
+            </span>
+          </div>
+          <div id="shopping-list-container" class="space-y-2.5"></div>
+          <div id="shopping-list-empty" class="hidden text-center py-16">
+            <div class="text-5xl mb-4">🎉</div>
+            <h3 class="text-lg font-semibold text-gray-700">¡Todo comprado!</h3>
+            <p class="text-gray-500 mt-1">No tienes nada pendiente de comprar para este viaje.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== VISTA: DETALLE DE CATEGORÍA ===== -->
+      <div id="category-detail-view" class="hidden fade-in">
+        <button id="back-to-trip" class="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium mb-4 transition">
+          ← Volver al viaje
+        </button>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h2 id="category-detail-name" class="text-2xl font-bold text-gray-900"></h2>
+          <div class="mt-4">
+            <div class="flex justify-between text-sm text-gray-500 mb-1.5">
+              <span>Empacado</span>
+              <span id="category-detail-progress-text">0 / 0</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+              <div id="category-detail-progress-bar" class="bg-emerald-500 h-2.5 rounded-full progress-bar" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-800">Elementos</h3>
+          <button id="add-item-btn"
+            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition flex items-center gap-2 active:scale-[0.97] text-sm shadow-sm">
+            <span class="text-base leading-none">+</span> Elemento
+          </button>
+        </div>
+        <div id="items-container" class="space-y-4"></div>
+        <div id="items-empty" class="hidden text-center py-16">
+          <div class="text-5xl mb-4">📦</div>
+          <h3 class="text-lg font-semibold text-gray-700">Sin elementos</h3>
+          <p class="text-gray-500 mt-1">Añade lo que necesitas empacar en esta categoría</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ==================== MODALES ==================== -->
+  <!-- MODAL: VIAJE -->
+  <div id="trip-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 modal-enter">
+      <div class="flex items-center justify-between mb-5">
+        <h3 id="trip-modal-title" class="text-xl font-bold text-gray-900">Nuevo Viaje</h3>
+        <button id="close-trip-modal" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="trip-form" class="space-y-4">
+        <input type="hidden" id="trip-id-hidden">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del viaje *</label>
+          <input id="trip-name-input" type="text" required placeholder="Ej: Vacaciones en Roma"
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Destino</label>
+          <input id="trip-destination-input" type="text" placeholder="Ej: Roma, Italia"
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha inicio</label>
+            <input id="trip-start-date" type="date"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha fin</label>
+            <input id="trip-end-date" type="date"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+          </div>
+        </div>
+        <button type="submit"
+          class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition active:scale-[0.98]">
+          Guardar viaje
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CATEGORÍA -->
+  <div id="category-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 modal-enter">
+      <div class="flex items-center justify-between mb-5">
+        <h3 id="category-modal-title" class="text-xl font-bold text-gray-900">Nueva Categoría</h3>
+        <button id="close-category-modal" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="category-form" class="space-y-4">
+        <input type="hidden" id="category-id-hidden">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+          <input id="category-name-input" type="text" required placeholder="Ej: Ropa"
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Icono</label>
+          <input type="hidden" id="selected-icon-input" value="📦">
+          <div id="category-icon-grid" class="grid grid-cols-6 gap-2"></div>
+        </div>
+        <button type="submit"
+          class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition active:scale-[0.98]">
+          Guardar categoría
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ELEMENTO -->
+  <div id="item-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 modal-enter max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-5">
+        <h3 id="item-modal-title" class="text-xl font-bold text-gray-900">Nuevo Elemento</h3>
+        <button id="close-item-modal" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="item-form" class="space-y-4">
+        <input type="hidden" id="item-id-hidden">
+        <input type="hidden" id="item-existing-photo" value="">
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+          <input id="item-name-input" type="text" required placeholder="Ej: Camiseta blanca de lino"
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Grupo / Sección (Opcional)</label>
+          <input id="item-subcategory-input" list="subcategories-datalist" type="text" placeholder="Ej: Camisetas, Pantalones, Calzado..."
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+          <datalist id="subcategories-datalist"></datalist>
+          <p class="text-xs text-gray-400 mt-1">Si usas el mismo nombre se agruparán juntos automáticamente.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+            <input id="item-quantity-input" type="number" min="1" value="1"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+          </div>
+          <div class="flex items-end pb-1">
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input id="item-to-buy" type="checkbox"
+                class="w-5 h-5 rounded border-gray-300 text-amber-500 focus:ring-amber-400">
+              <span class="text-sm font-medium text-gray-700">🛒 Por comprar</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+          <textarea id="item-notes-input" rows="2" placeholder="Notas opcionales..."
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition resize-none"></textarea>
+        </div>
+        <!-- Foto -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Foto</label>
+          <input type="file" id="item-photo-input" accept="image/*" class="hidden">
+          <input type="file" id="item-camera-input" accept="image/*" capture="environment" class="hidden">
+          <div class="flex gap-2">
+            <button type="button" id="item-upload-btn"
+              class="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition flex items-center justify-center gap-2">
+              📁 Archivo
+            </button>
+            <button type="button" id="item-camera-btn"
+              class="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition flex items-center justify-center gap-2">
+              📷 Cámara
+            </button>
+          </div>
+          <div id="item-photo-container" class="hidden mt-3 relative">
+            <img id="item-photo-preview" class="w-full h-48 object-cover rounded-xl border border-gray-200" alt="Preview">
+            <button type="button" id="item-remove-photo"
+              class="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm hover:bg-red-600 transition shadow-lg">
+              ✕
+            </button>
+          </div>
+        </div>
+        <button type="submit"
+          class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition active:scale-[0.98]">
+          Guardar elemento
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIRMACIÓN ELIMINAR -->
+  <div id="delete-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 modal-enter">
+      <div class="text-center">
+        <div class="text-4xl mb-3">⚠️</div>
+        <h3 class="text-lg font-bold text-gray-900">¿Estás seguro?</h3>
+        <p id="delete-message" class="text-gray-500 mt-2 text-sm"></p>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button id="delete-cancel"
+          class="flex-1 py-2.5 border border-gray-200 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition">
+          Cancelar
+        </button>
+        <button id="delete-confirm"
+          class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition">
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: VER FOTO -->
+  <div id="photo-viewer-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 cursor-pointer">
+    <img id="photo-viewer-img" class="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain" alt="Foto">
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast-notification" class="hidden fixed bottom-6 right-6 z-50 max-w-sm">
+    <div class="bg-gray-900 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-3">
+      <span id="toast-icon" class="text-lg"></span>
+      <span id="toast-message" class="text-sm font-medium"></span>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+  
+  <!-- Registro de Service Worker para PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW no registrado', err));
+      });
+    }
+  </script>
+</body>
+</html>
