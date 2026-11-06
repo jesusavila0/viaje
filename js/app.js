@@ -1,11 +1,12 @@
 // =====================================================================
-//  Mi Maleta ✈️ — Completo con PWA, Lista de Compras y Grupos Sin Case-Sensitivity
+//  Mi Maleta ✈️ — Completo con Persistencia Fija Local y Sin Parpadeos
 // =====================================================================
 
 import { auth, db, googleProvider } from './firebase-init.js';
 import {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  signInWithPopup, signOut, updateProfile
+  signInWithPopup, signOut, updateProfile,
+  setPersistence, browserLocalPersistence
 } from 'firebase/auth';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, query, where,
@@ -58,6 +59,7 @@ const $ = (id) => document.getElementById(id);
 //  UI HELPERS
 // =====================================================================
 function showView(viewId) {
+  $('initial-loading-screen').classList.add('hidden');
   ['trips-view', 'trip-detail-view', 'category-detail-view', 'loading-screen'].forEach(id => {
     $(id).classList.add('hidden');
   });
@@ -189,11 +191,13 @@ function handleLogout() {
 }
 
 function showAuthScreen() {
+  $('initial-loading-screen').classList.add('hidden');
   $('auth-screen').classList.remove('hidden');
   $('app-screen').classList.add('hidden');
 }
 
 function showAppScreen(user) {
+  $('initial-loading-screen').classList.add('hidden');
   $('auth-screen').classList.add('hidden');
   $('app-screen').classList.remove('hidden');
   $('user-name-display').textContent = user.displayName || user.email;
@@ -685,7 +689,6 @@ function updateCategoryDetailProgress(items) {
   $('category-detail-progress-text').textContent = `${packed} / ${total} empacados`;
 }
 
-// Sugerencias sin duplicados por mayúsculas
 function updateSubcategoriesDatalist(items) {
   const datalist = $('subcategories-datalist');
   if (!datalist) return;
@@ -705,7 +708,6 @@ function updateSubcategoriesDatalist(items) {
     .join('');
 }
 
-// RENDER AGRUPADO: Ignora mayúsculas/minúsculas y las une en el mismo bloque
 function renderItems(items) {
   const container = $('items-container');
   const empty = $('items-empty');
@@ -723,9 +725,7 @@ function renderItems(items) {
     let displayTitle = 'General / Varios';
 
     if (raw) {
-      // Normalizamos a minúsculas como clave
       groupKey = raw.toLowerCase();
-      // Mostramos siempre con la primera letra en mayúscula
       displayTitle = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
     }
 
@@ -1129,19 +1129,32 @@ function setupEventListeners() {
 }
 
 // =====================================================================
-//  INICIALIZACIÓN
+//  INICIALIZACIÓN CON PERSISTENCIA FIJA
 // =====================================================================
 setupEventListeners();
 
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    currentUser = user;
-    showAppScreen(user);
-  } else {
-    currentUser = null;
-    currentTripId = null;
-    currentCategoryId = null;
-    cleanupAllListeners();
-    showAuthScreen();
-  }
+// Forzar sesión persistente local para que el móvil recuerde la cuenta siempre
+setPersistence(auth, browserLocalPersistence).then(() => {
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      currentUser = user;
+      showAppScreen(user);
+    } else {
+      currentUser = null;
+      currentTripId = null;
+      currentCategoryId = null;
+      cleanupAllListeners();
+      showAuthScreen();
+    }
+  });
+}).catch((err) => {
+  console.error("Error persistencia:", err);
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      currentUser = user;
+      showAppScreen(user);
+    } else {
+      showAuthScreen();
+    }
+  });
 });

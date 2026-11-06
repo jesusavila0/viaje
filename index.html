@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Mi Maleta ✈️</title>
 
+  <!-- Anti-caché severo para navegadores móviles -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <!-- Configuración PWA / Móvil -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f46e5">
@@ -63,8 +68,16 @@
 </head>
 <body class="bg-gray-50 min-h-screen font-sans select-none">
 
-  <!-- ==================== PANTALLA DE AUTH ==================== -->
-  <div id="auth-screen" class="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 flex items-center justify-center p-4">
+  <!-- ==================== SPINNER INICIAL DE CARGA (Para que nunca parpadee el Login) ==================== -->
+  <div id="initial-loading-screen" class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="text-center">
+      <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
+      <p class="text-gray-500 mt-4 font-medium text-sm">Cargando Mi Maleta...</p>
+    </div>
+  </div>
+
+  <!-- ==================== PANTALLA DE AUTH (Oculta de salida) ==================== -->
+  <div id="auth-screen" class="hidden min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 modal-enter">
       <div class="text-center mb-8">
         <div class="text-5xl mb-3">🧳✈️</div>
@@ -153,11 +166,11 @@
       </div>
     </nav>
 
-    <!-- Loading -->
-    <div id="loading-screen" class="flex items-center justify-center py-32">
+    <!-- Loading interno -->
+    <div id="loading-screen" class="hidden flex items-center justify-center py-32">
       <div class="text-center">
         <div class="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
-        <p class="text-gray-500 mt-4">Cargando tus viajes...</p>
+        <p class="text-gray-500 mt-4 text-sm">Cargando tus viajes...</p>
       </div>
     </div>
 
@@ -208,7 +221,7 @@
           </div>
         </div>
 
-        <!-- Pestañas de Navegación del Viaje (Categorías vs Lista de Compras) -->
+        <!-- Pestañas de Navegación del Viaje -->
         <div class="flex border-b border-gray-200 mb-6">
           <button id="tab-categories-btn" class="py-3 px-5 border-b-2 border-indigo-600 text-indigo-600 font-bold text-sm sm:text-base flex items-center gap-2 transition">
             <span>📂</span> Categorías
@@ -219,7 +232,7 @@
           </button>
         </div>
 
-        <!-- Pestaña 1: Vista de Categorías -->
+        <!-- Pestaña 1: Categorías -->
         <div id="trip-categories-tab-content">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold text-gray-800">Categorías de equipaje</h3>
@@ -236,7 +249,7 @@
           </div>
         </div>
 
-        <!-- Pestaña 2: Vista de Lista de la Compra Centralizada -->
+        <!-- Pestaña 2: Lista de la Compra -->
         <div id="trip-shopping-tab-content" class="hidden">
           <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 mb-5 flex items-center justify-between">
             <div>
@@ -405,7 +418,6 @@
           <textarea id="item-notes-input" rows="2" placeholder="Notas opcionales..."
             class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition resize-none"></textarea>
         </div>
-        <!-- Foto -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Foto</label>
           <input type="file" id="item-photo-input" accept="image/*" class="hidden">
@@ -470,18 +482,16 @@
     </div>
   </div>
 
-  <!-- Carga siempre el JS en tiempo real saltándose la caché del móvil -->
+  <!-- Carga siempre en tiempo real con Date.now() -->
   <script>
     const s = document.createElement('script');
     s.type = 'module';
     s.src = 'js/app.js?v=' + Date.now();
     document.body.appendChild(s);
 
-    // Registra el Service Worker con timestamp para que no congele nada
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js?t=' + Date.now());
     }
   </script>
 </body>
 </html>
-  
