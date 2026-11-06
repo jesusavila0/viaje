@@ -470,15 +470,18 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js"></script>
-  
-  <!-- Registro de Service Worker para PWA -->
+  <!-- Carga siempre el JS en tiempo real saltándose la caché del móvil -->
   <script>
+    const s = document.createElement('script');
+    s.type = 'module';
+    s.src = 'js/app.js?v=' + Date.now();
+    document.body.appendChild(s);
+
+    // Registra el Service Worker con timestamp para que no congele nada
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW no registrado', err));
-      });
+      navigator.serviceWorker.register('sw.js?t=' + Date.now());
     }
   </script>
 </body>
 </html>
+  
