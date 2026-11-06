@@ -191,15 +191,15 @@ function handleLogout() {
 }
 
 function showAuthScreen() {
-  $('initial-loading-screen').classList.add('hidden');
-  $('auth-screen').classList.remove('hidden');
-  $('app-screen').classList.add('hidden');
+  $('initial-loading-screen').style.display = 'none';
+  $('auth-screen').style.display = 'flex'; // Solo se muestra si NO estás logueado
+  $('app-screen').style.display = 'none';
 }
 
 function showAppScreen(user) {
-  $('initial-loading-screen').classList.add('hidden');
-  $('auth-screen').classList.add('hidden');
-  $('app-screen').classList.remove('hidden');
+  $('initial-loading-screen').style.display = 'none';
+  $('auth-screen').style.display = 'none'; // Se queda oculto al 100%
+  $('app-screen').style.display = 'block';
   $('user-name-display').textContent = user.displayName || user.email;
   showView('loading-screen');
   loadTrips();
