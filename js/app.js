@@ -1134,33 +1134,52 @@ function setupEventListeners() {
 }
 
 // =====================================================================
-//  INICIALIZACIÓN ULTRA RÁPIDA (CON DESBLOQUEO INMEDIATO)
+//  INICIALIZACIÓN ULTRA RESISTENTE A MODO INCÓGNITO DE IPHONE
 // =====================================================================
 setupEventListeners();
 
 let authResolved = false;
 
-// Si por cualquier motivo Firebase tarda más de 1.8 segundos, quitamos la pantalla de carga
-setTimeout(() => {
+// 1. Temporizador de rescate: Si Safari en incógnito bloquea Firebase, forzamos la entrada
+const safetyTimer = setTimeout(() => {
   if (!authResolved) {
+    console.warn("Detectado posible modo incógnito o bloqueo de almacenamiento en Safari.");
+    authResolved = true;
     dismissInitialLoading();
-    if (!currentUser) showAuthScreen();
+    
+    // Si no resolvió usuario, mostramos el login para que pueda entrar
+    if (!currentUser) {
+      showAuthScreen();
+    }
   }
-}, 1800);
+}, 1200); // 1.2 segundos máximo
 
-// Escucha nativa de sesión: responde al instante desde la memoria del teléfono
-onAuthStateChanged(auth, (user) => {
-  authResolved = true;
-  dismissInitialLoading();
+// 2. Escucha de autenticación
+try {
+  onAuthStateChanged(auth, (user) => {
+    authResolved = true;
+    clearTimeout(safetyTimer);
+    dismissInitialLoading();
 
-  if (user) {
-    currentUser = user;
-    showAppScreen(user);
-  } else {
-    currentUser = null;
-    currentTripId = null;
-    currentCategoryId = null;
-    cleanupAllListeners();
+    if (user) {
+      currentUser = user;
+      showAppScreen(user);
+    } else {
+      currentUser = null;
+      currentTripId = null;
+      currentCategoryId = null;
+      cleanupAllListeners();
+      showAuthScreen();
+    }
+  }, (error) => {
+    console.error("Error en Auth:", error);
+    authResolved = true;
+    clearTimeout(safetyTimer);
+    dismissInitialLoading();
     showAuthScreen();
-  }
-});
+  });
+} catch (e) {
+  console.error("Excepción en Auth:", e);
+  dismissInitialLoading();
+  showAuthScreen();
+}
