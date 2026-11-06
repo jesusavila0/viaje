@@ -1,27 +1,32 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" style="background-color: #f9fafb;">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mi Maleta ✈️</title>
-  <link rel="canonical" href="./">
 
-  <!-- Anti-caché severo para navegadores móviles -->
+  <!-- Anti-caché -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
-  <!-- Configuración PWA / Móvil -->
+  <!-- Optimización iOS / PWA (Elimina la pantalla negra de arranque) -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f46e5">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- 'default' hace que iOS use el color de fondo de la app en vez de pantalla negra -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Mi Maleta">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧳</text></svg>">
+  <link rel="canonical" href="./">
 
+  <!-- Conexión anticipada a servidores para rascar 2 segundos -->
+  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -32,6 +37,7 @@
       }
     }
   </script>
+
   <script type="importmap">
   {
     "imports": {
@@ -42,8 +48,16 @@
     }
   }
   </script>
+
   <style>
-    /* PROHIBIDO MOSTRAR EL LOGIN POR DEFECTO PARA QUE NUNCA PARPADEE */
+    /* Fondo instantáneo para que iOS nunca pinte negro */
+    html, body {
+      background-color: #f9fafb !important;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
     #auth-screen { display: none !important; }
 
     .modal-enter { animation: modalIn 0.25s ease-out; }
@@ -70,13 +84,14 @@
     }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans select-none">
+<body class="bg-gray-50 min-h-screen font-sans select-none" style="background-color: #f9fafb;">
 
-  <!-- ==================== PANTALLA INICIAL DE ESPERA ==================== -->
-  <div id="initial-loading-screen" class="min-h-screen flex items-center justify-center bg-gray-50">
-    <div class="text-center">
-      <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
-      <p class="text-gray-500 mt-4 font-medium text-sm">Cargando Mi Maleta...</p>
+  <!-- ==================== PANTALLA INICIAL ULTRA LIGERA (Carga en 0.1s) ==================== -->
+  <div id="initial-loading-screen" style="position: fixed; inset: 0; background-color: #f9fafb; display: flex; align-items: center; justify-content: center; z-index: 9999;">
+    <div style="text-align: center;">
+      <div style="font-size: 54px; margin-bottom: 12px; animation: pulse 1.5s infinite ease-in-out;">🧳</div>
+      <div class="w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto" style="width: 28px; height: 28px; border: 3px solid #e0e7ff; border-top-color: #4f46e5; border-radius: 50%;"></div>
+      <p style="color: #6b7280; margin-top: 12px; font-size: 13px; font-weight: 500;">Mi Maleta</p>
     </div>
   </div>
 
@@ -156,7 +171,6 @@
 
   <!-- ==================== PANTALLA PRINCIPAL ==================== -->
   <div id="app-screen" class="hidden min-h-screen">
-    <!-- Navbar -->
     <nav class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
       <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
         <h1 class="text-xl font-bold text-gray-900 flex items-center gap-2">🧳 Mi Maleta</h1>
@@ -170,7 +184,6 @@
       </div>
     </nav>
 
-    <!-- Loading interno -->
     <div id="loading-screen" class="hidden flex items-center justify-center py-32">
       <div class="text-center">
         <div class="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
@@ -180,7 +193,7 @@
 
     <main class="max-w-4xl mx-auto px-4 py-6">
 
-      <!-- ===== VISTA: MIS VIAJES ===== -->
+      <!-- VISTA: MIS VIAJES -->
       <div id="trips-view" class="hidden fade-in">
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-2xl font-bold text-gray-900">Mis Viajes</h2>
@@ -197,7 +210,7 @@
         </div>
       </div>
 
-      <!-- ===== VISTA: DETALLE DE VIAJE ===== -->
+      <!-- VISTA: DETALLE DE VIAJE -->
       <div id="trip-detail-view" class="hidden fade-in">
         <button id="back-to-trips" class="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium mb-4 transition">
           ← Volver a mis viajes
@@ -225,7 +238,6 @@
           </div>
         </div>
 
-        <!-- Pestañas de Navegación del Viaje -->
         <div class="flex border-b border-gray-200 mb-6">
           <button id="tab-categories-btn" class="py-3 px-5 border-b-2 border-indigo-600 text-indigo-600 font-bold text-sm sm:text-base flex items-center gap-2 transition">
             <span>📂</span> Categorías
@@ -236,7 +248,6 @@
           </button>
         </div>
 
-        <!-- Pestaña 1: Categorías -->
         <div id="trip-categories-tab-content">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold text-gray-800">Categorías de equipaje</h3>
@@ -253,7 +264,6 @@
           </div>
         </div>
 
-        <!-- Pestaña 2: Lista de la Compra -->
         <div id="trip-shopping-tab-content" class="hidden">
           <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 mb-5 flex items-center justify-between">
             <div>
@@ -276,7 +286,7 @@
 
       </div>
 
-      <!-- ===== VISTA: DETALLE DE CATEGORÍA ===== -->
+      <!-- VISTA: DETALLE DE CATEGORÍA -->
       <div id="category-detail-view" class="hidden fade-in">
         <button id="back-to-trip" class="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium mb-4 transition">
           ← Volver al viaje
@@ -311,8 +321,7 @@
     </main>
   </div>
 
-  <!-- ==================== MODALES ==================== -->
-  <!-- MODAL: VIAJE -->
+  <!-- MODALES -->
   <div id="trip-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 modal-enter">
       <div class="flex items-center justify-between mb-5">
@@ -351,7 +360,6 @@
     </div>
   </div>
 
-  <!-- MODAL: CATEGORÍA -->
   <div id="category-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 modal-enter">
       <div class="flex items-center justify-between mb-5">
@@ -378,7 +386,6 @@
     </div>
   </div>
 
-  <!-- MODAL: ELEMENTO -->
   <div id="item-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 modal-enter max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between mb-5">
@@ -452,7 +459,6 @@
     </div>
   </div>
 
-  <!-- MODAL: CONFIRMACIÓN ELIMINAR -->
   <div id="delete-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 modal-enter">
       <div class="text-center">
@@ -473,12 +479,10 @@
     </div>
   </div>
 
-  <!-- MODAL: VER FOTO -->
   <div id="photo-viewer-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 cursor-pointer">
     <img id="photo-viewer-img" class="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain" alt="Foto">
   </div>
 
-  <!-- TOAST -->
   <div id="toast-notification" class="hidden fixed bottom-6 right-6 z-50 max-w-sm">
     <div class="bg-gray-900 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-3">
       <span id="toast-icon" class="text-lg"></span>
@@ -486,7 +490,7 @@
     </div>
   </div>
 
-  <!-- Carga en tiempo real saltando caché -->
+  <!-- Carga limpia de JS -->
   <script>
     const s = document.createElement('script');
     s.type = 'module';
