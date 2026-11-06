@@ -42,6 +42,9 @@
   }
   </script>
   <style>
+    /* PROHIBIDO MOSTRAR EL LOGIN POR DEFECTO PARA QUE NUNCA PARPADEE */
+    #auth-screen { display: none !important; }
+
     .modal-enter { animation: modalIn 0.25s ease-out; }
     @keyframes modalIn {
       from { opacity: 0; transform: scale(0.95) translateY(10px); }
@@ -68,7 +71,7 @@
 </head>
 <body class="bg-gray-50 min-h-screen font-sans select-none">
 
-  <!-- ==================== SPINNER INICIAL DE CARGA (Para que nunca parpadee el Login) ==================== -->
+  <!-- ==================== PANTALLA INICIAL DE ESPERA ==================== -->
   <div id="initial-loading-screen" class="min-h-screen flex items-center justify-center bg-gray-50">
     <div class="text-center">
       <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto"></div>
@@ -76,8 +79,9 @@
     </div>
   </div>
 
-  <!-- ==================== PANTALLA DE AUTH (Oculta de salida) ==================== -->
-    <div id="auth-screen" style="display: none;" class="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 flex items-center justify-center p-4">    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 modal-enter">
+  <!-- ==================== PANTALLA DE AUTH ==================== -->
+  <div id="auth-screen" class="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 modal-enter">
       <div class="text-center mb-8">
         <div class="text-5xl mb-3">🧳✈️</div>
         <h1 class="text-3xl font-extrabold text-gray-900">Mi Maleta</h1>
@@ -481,7 +485,7 @@
     </div>
   </div>
 
-  <!-- Carga siempre en tiempo real con Date.now() -->
+  <!-- Carga en tiempo real saltando caché -->
   <script>
     const s = document.createElement('script');
     s.type = 'module';

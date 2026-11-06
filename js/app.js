@@ -191,15 +191,26 @@ function handleLogout() {
 }
 
 function showAuthScreen() {
-  $('initial-loading-screen').style.display = 'none';
-  $('auth-screen').style.display = 'flex'; // Solo se muestra si NO estás logueado
-  $('app-screen').style.display = 'none';
+  const initLoading = $('initial-loading-screen');
+  if (initLoading) initLoading.style.setProperty('display', 'none', 'important');
+  
+  const authScreen = $('auth-screen');
+  if (authScreen) authScreen.style.setProperty('display', 'flex', 'important');
+  
+  const appScreen = $('app-screen');
+  if (appScreen) appScreen.style.setProperty('display', 'none', 'important');
 }
 
 function showAppScreen(user) {
-  $('initial-loading-screen').style.display = 'none';
-  $('auth-screen').style.display = 'none'; // Se queda oculto al 100%
-  $('app-screen').style.display = 'block';
+  const initLoading = $('initial-loading-screen');
+  if (initLoading) initLoading.style.setProperty('display', 'none', 'important');
+  
+  const authScreen = $('auth-screen');
+  if (authScreen) authScreen.style.setProperty('display', 'none', 'important');
+  
+  const appScreen = $('app-screen');
+  if (appScreen) appScreen.style.setProperty('display', 'block', 'important');
+  
   $('user-name-display').textContent = user.displayName || user.email;
   showView('loading-screen');
   loadTrips();
