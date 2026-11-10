@@ -27,7 +27,7 @@ const CATEGORY_ICONS = [
   { emoji: '🍕', label: 'Comida' },
   { emoji: '☀️', label: 'Playa' },
   { emoji: '📷', label: 'Fotografía' },
-  { emoji: '📦', label: 'Otros' },
+  { emoji: '📦', label: 'Otros' }
 ];
 
 // =====================================================================
@@ -60,7 +60,6 @@ const $ = (id) => document.getElementById(id);
 // =====================================================================
 function formatNotesWithLinks(text) {
   if (!text) return '';
-  // Escapar HTML para seguridad
   const escaped = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -68,13 +67,11 @@ function formatNotesWithLinks(text) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 
-  // Expresión regular para detectar URLs que empiecen por http://, https:// o www.
   const urlRegex = /((https?:\/\/|www\.)[^\s]+)/gi;
 
   return escaped.replace(urlRegex, (rawUrl) => {
     let cleanUrl = rawUrl;
     let trailing = '';
-    // Evitar que puntos o comas finales se queden dentro del link
     while (/[.,;:!?)\]]$/.test(cleanUrl)) {
       trailing = cleanUrl.slice(-1) + trailing;
       cleanUrl = cleanUrl.slice(0, -1);
@@ -1066,9 +1063,11 @@ async function compressImage(file, maxWidth = 500, quality = 0.6) {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      let w = img.width, h = img.height;
+      let w = img.width;
+      let h = img.height;
       if (w > maxWidth) {
-        h = Math.round((h * maxWidth) / w);\n        w = maxWidth;
+        h = Math.round((h * maxWidth) / w);
+        w = maxWidth;
       }
       canvas.width = w;
       canvas.height = h;
@@ -1286,7 +1285,6 @@ function setupEventListeners() {
   $('item-remove-photo').addEventListener('click', removePhotoPreview);
 
   const handleItemActions = (e) => {
-    // Si se hace clic sobre un enlace <a>, no disparamos ninguna otra acción
     if (e.target.tagName === 'A' || e.target.closest('a')) {
       return;
     }
@@ -1345,23 +1343,24 @@ function setupEventListeners() {
 }
 
 // =====================================================================
-//  INICIALIZACIÓN
+//  INICIALIZACIÓN LIMPIA
 // =====================================================================
 setupEventListeners();
 
-checkSharedLink().then((isShared) => {
-  if (!isShared) {
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        currentUser = user;
-        showAppScreen(user);
-      } else {
-        currentUser = null;
-        currentTripId = null;
-        currentCategoryId = null;
-        cleanupAllListeners();
-        showAuthScreen();
-      }
-    });
-  }
-});
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('share')) {
+  checkSharedLink();
+} else {
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      currentUser = user;
+      showAppScreen(user);
+    } else {
+      currentUser = null;
+      currentTripId = null;
+      currentCategoryId = null;
+      cleanupAllListeners();
+      showAuthScreen();
+    }
+  });
+}
