@@ -1,5 +1,5 @@
 // =====================================================================
-//  Mi Maleta ✈️ — Completo con Compartir Enlace Público Interactivo
+//  Mi Maleta ✈️ — Completo con Enlaces Clickeables en Notas y Lista Pública
 // =====================================================================
 
 import { auth, db, googleProvider } from './firebase-init.js';
@@ -54,6 +54,35 @@ let activeShareUrl = '';
 const userCol = (colName) => collection(db, 'users', currentUser.uid, colName);
 const userDoc = (colName, docId) => doc(db, 'users', currentUser.uid, colName, docId);
 const $ = (id) => document.getElementById(id);
+
+// =====================================================================
+//  HELPER: DETECCIÓN Y FORMATO DE ENLACES EN NOTAS
+// =====================================================================
+function formatNotesWithLinks(text) {
+  if (!text) return '';
+  // Escapar HTML para seguridad
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  // Expresión regular para detectar URLs que empiecen por http://, https:// o www.
+  const urlRegex = /((https?:\/\/|www\.)[^\s]+)/gi;
+
+  return escaped.replace(urlRegex, (rawUrl) => {
+    let cleanUrl = rawUrl;
+    let trailing = '';
+    // Evitar que puntos o comas finales se queden dentro del link
+    while (/[.,;:!?)\]]$/.test(cleanUrl)) {
+      trailing = cleanUrl.slice(-1) + trailing;
+      cleanUrl = cleanUrl.slice(0, -1);
+    }
+    const href = cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 underline font-semibold break-all hover:text-indigo-800 inline-block" onclick="event.stopPropagation()">🔗 ${cleanUrl}</a>${trailing}`;
+  });
+}
 
 // =====================================================================
 //  UI HELPERS
@@ -115,7 +144,6 @@ async function checkSharedLink() {
   const shareId = params.get('share');
   if (!shareId) return false;
 
-  // Si viene con ?share=ID, mostramos directamente la vista de invitado
   $('auth-screen').style.setProperty('display', 'none', 'important');
   $('app-screen').style.setProperty('display', 'none', 'important');
   $('shared-public-view').classList.remove('hidden');
@@ -123,7 +151,6 @@ async function checkSharedLink() {
   try {
     const docRef = doc(db, 'shared_lists', shareId);
     
-    // Escuchar en tiempo real para que si alguien tacha algo se actualice
     onSnapshot(docRef, (docSnap) => {
       if (!docSnap.exists()) {
         $('shared-trip-title').textContent = "Lista no encontrada";
@@ -146,7 +173,6 @@ async function checkSharedLink() {
       }
       emptyState.classList.add('hidden');
 
-      // Ordenar: pendientes arriba, comprados abajo
       items.sort((a, b) => (a.packed === b.packed ? 0 : a.packed ? 1 : -1));
 
       container.innerHTML = items.map((item, idx) => {
@@ -155,8 +181,8 @@ async function checkSharedLink() {
         const txt = isBought ? 'line-through text-gray-400' : 'text-gray-900 font-bold';
 
         return `
-          <div class="flex items-center gap-3 p-3.5 rounded-2xl border ${bg} shadow-sm transition-all">
-            <input type="checkbox" class="shared-toggle-cb w-5 h-5 rounded cursor-pointer flex-shrink-0"
+          <div class="flex items-start gap-3 p-3.5 rounded-2xl border ${bg} shadow-sm transition-all">
+            <input type="checkbox" class="shared-toggle-cb w-5 h-5 rounded cursor-pointer mt-0.5 flex-shrink-0"
                    data-item-idx="${idx}" ${isBought ? 'checked' : ''}>
             ${item.photoUrl ? `<img src="${item.photoUrl}" class="w-11 h-11 object-contain rounded-xl bg-gray-50 border border-gray-100 flex-shrink-0" alt="foto">` : ''}
             <div class="flex-1 min-w-0">
@@ -165,13 +191,12 @@ async function checkSharedLink() {
                 ${item.quantity > 1 ? `<span class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">×${item.quantity}</span>` : ''}
                 ${item.category ? `<span class="text-xs text-gray-400">(${item.category})</span>` : ''}
               </div>
-              ${item.notes ? `<p class="text-xs text-gray-400 mt-0.5 truncate">${item.notes}</p>` : ''}
+              ${item.notes ? `<div class="text-xs text-gray-600 mt-1 break-words">${formatNotesWithLinks(item.notes)}</div>` : ''}
             </div>
           </div>
         `;
       }).join('');
 
-      // Listener para que el invitado pueda tachar cosas en la nube
       container.querySelectorAll('.shared-toggle-cb').forEach(cb => {
         cb.addEventListener('change', async (e) => {
           const clickedIdx = parseInt(e.target.dataset.itemIdx);
@@ -206,10 +231,8 @@ async function handleCreateShareLink() {
   shareBtn.innerHTML = `<span>⏳</span> Generando...`;
 
   try {
-    // Generamos un ID único y limpio para el viaje
     const shareId = `${currentTripId}_shopping`;
 
-    // Preparamos los datos limpios para el invitado
     const sharedData = {
       tripName: currentTripData ? currentTripData.name : 'Mi Viaje',
       destination: currentTripData ? currentTripData.destination : '',
@@ -228,10 +251,8 @@ async function handleCreateShareLink() {
       })
     };
 
-    // Guardamos en la colección pública de Firestore
     await setDoc(doc(db, 'shared_lists', shareId), sharedData);
 
-    // Creamos la URL completa
     const baseUrl = window.location.href.split('?')[0].split('#')[0];
     activeShareUrl = `${baseUrl}?share=${shareId}`;
 
@@ -653,8 +674,8 @@ function renderShoppingList(items) {
     const locIcon = item.location === 'mochila' ? '🎒 Mochila' : '🧳 Maleta';
 
     return `
-      <div class="flex items-center gap-3 p-3.5 rounded-xl border ${bgClass} transition-all shadow-sm">
-        <input type="checkbox" class="item-packed-cb w-5 h-5 rounded cursor-pointer flex-shrink-0"
+      <div class="flex items-start gap-3 p-3.5 rounded-xl border ${bgClass} transition-all shadow-sm">
+        <input type="checkbox" class="item-packed-cb w-5 h-5 rounded cursor-pointer mt-0.5 flex-shrink-0"
                data-item-packed="${item.id}" ${isBought ? 'checked' : ''}>
         
         ${item.photoUrl ? `<img src="${item.photoUrl}" class="w-10 h-10 object-contain rounded-lg bg-gray-50 border border-gray-100 flex-shrink-0" alt="foto">` : ''}
@@ -666,7 +687,7 @@ function renderShoppingList(items) {
             <span class="text-[11px] text-gray-400 font-medium">(${catLabel})</span>
             <span class="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium">${locIcon}</span>
           </div>
-          ${item.notes ? `<p class="text-xs text-gray-400 mt-0.5 truncate">${item.notes}</p>` : ''}
+          ${item.notes ? `<div class="text-xs text-gray-500 mt-1 break-words">${formatNotesWithLinks(item.notes)}</div>` : ''}
         </div>
 
         <button class="edit-item-btn p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-gray-100 text-xs transition flex-shrink-0" data-item-edit="${item.id}">
@@ -951,7 +972,7 @@ function renderSingleItemRow(item) {
     : '';
 
   const notesHtml = item.notes
-    ? `<p class="text-[11px] text-gray-400 mt-0.5 line-clamp-1">${item.notes}</p>`
+    ? `<div class="text-[11px] text-gray-500 mt-1 break-words">${formatNotesWithLinks(item.notes)}</div>`
     : '';
 
   return `
@@ -1047,8 +1068,7 @@ async function compressImage(file, maxWidth = 500, quality = 0.6) {
       const canvas = document.createElement('canvas');
       let w = img.width, h = img.height;
       if (w > maxWidth) {
-        h = Math.round((h * maxWidth) / w);
-        w = maxWidth;
+        h = Math.round((h * maxWidth) / w);\n        w = maxWidth;
       }
       canvas.width = w;
       canvas.height = h;
@@ -1191,13 +1211,11 @@ function setupEventListeners() {
   $('tab-categories-btn').addEventListener('click', () => switchTripTab('categories'));
   $('tab-shopping-btn').addEventListener('click', () => switchTripTab('shopping'));
 
-  // Botón para generar el enlace compartido
   $('share-shopping-btn').addEventListener('click', handleCreateShareLink);
   $('close-share-modal').addEventListener('click', () => hideModal('share-modal'));
   $('share-copy-btn').addEventListener('click', copyShareUrl);
   $('share-whatsapp-btn').addEventListener('click', shareUrlViaWhatsApp);
 
-  // Selector de Ubicación (Maleta / Mochila)
   $('btn-loc-maleta').addEventListener('click', () => setItemLocationUI('maleta'));
   $('btn-loc-mochila').addEventListener('click', () => setItemLocationUI('mochila'));
 
@@ -1268,6 +1286,11 @@ function setupEventListeners() {
   $('item-remove-photo').addEventListener('click', removePhotoPreview);
 
   const handleItemActions = (e) => {
+    // Si se hace clic sobre un enlace <a>, no disparamos ninguna otra acción
+    if (e.target.tagName === 'A' || e.target.closest('a')) {
+      return;
+    }
+
     const cb = e.target.closest('.item-packed-cb');
     if (cb) {
       togglePacked(cb.dataset.itemPacked, cb.checked);
@@ -1326,9 +1349,7 @@ function setupEventListeners() {
 // =====================================================================
 setupEventListeners();
 
-// Primero comprueba si viene de un enlace compartido público
 checkSharedLink().then((isShared) => {
-  // Si no es un enlace compartido, funciona como la app normal
   if (!isShared) {
     onAuthStateChanged(auth, (user) => {
       if (user) {
