@@ -885,14 +885,19 @@ function renderSingleItemRow(item) {
 //  ELEMENTOS (ITEMS)
 // =====================================================================
 function setItemLocationUI(loc) {
-  $('item-location-input').value = loc;
-  document.querySelectorAll('#item-location-selector .loc-btn').forEach(btn => {
-    if (btn.dataset.loc === loc) {
-      btn.className = 'loc-btn py-2.5 px-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/70 text-indigo-900 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition';
-    } else {
-      btn.className = 'loc-btn py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-600 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition hover:bg-gray-50';
-    }
-  });
+  const chosenLoc = loc === 'mochila' ? 'mochila' : 'maleta';
+  $('item-location-input').value = chosenLoc;
+
+  const btnMaleta = $('btn-loc-maleta');
+  const btnMochila = $('btn-loc-mochila');
+
+  if (chosenLoc === 'maleta') {
+    btnMaleta.className = 'py-2.5 px-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/80 text-indigo-900 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer';
+    btnMochila.className = 'py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition hover:bg-gray-50 cursor-pointer';
+  } else {
+    btnMochila.className = 'py-2.5 px-3 rounded-xl border-2 border-sky-600 bg-sky-50/80 text-sky-900 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer';
+    btnMaleta.className = 'py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-500 font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition hover:bg-gray-50 cursor-pointer';
+  }
 }
 
 function openItemModal(itemData = null) {
@@ -1086,10 +1091,9 @@ function setupEventListeners() {
   $('share-copy-btn').addEventListener('click', copyShareText);
 
   // Selector de Ubicación (Maleta / Mochila) en el Modal
-  $('item-location-selector').addEventListener('click', (e) => {
-    const btn = e.target.closest('.loc-btn');
-    if (btn) setItemLocationUI(btn.dataset.loc);
-  });
+  // Clic directo en cada botón sin fallos de target
+  $('btn-loc-maleta').addEventListener('click', () => setItemLocationUI('maleta'));
+  $('btn-loc-mochila').addEventListener('click', () => setItemLocationUI('mochila'));
 
   $('add-trip-btn').addEventListener('click', () => openTripModal());
   $('trip-form').addEventListener('submit', (e) => { e.preventDefault(); saveTripForm(); });
