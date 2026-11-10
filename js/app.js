@@ -1,5 +1,5 @@
 // =====================================================================
-//  Mi Maleta ✈️ — Versión Ultrarrápida y Estable para iOS / Safari / PC
+//  Mi Maleta ✈️ — Con Ubicación (Maleta/Mochila) y Compartir Lista
 // =====================================================================
 
 import { auth, db, googleProvider } from './firebase-init.js';
@@ -54,19 +54,10 @@ const userCol = (colName) => collection(db, 'users', currentUser.uid, colName);
 const userDoc = (colName, docId) => doc(db, 'users', currentUser.uid, colName, docId);
 const $ = (id) => document.getElementById(id);
 
-// Quita la pantalla de carga inicial de forma segura e inmediata
-function dismissInitialLoading() {
-  const initLoading = $('initial-loading-screen');
-  if (initLoading) {
-    initLoading.style.setProperty('display', 'none', 'important');
-  }
-}
-
 // =====================================================================
 //  UI HELPERS
 // =====================================================================
 function showView(viewId) {
-  dismissInitialLoading();
   ['trips-view', 'trip-detail-view', 'category-detail-view'].forEach(id => {
     $(id).classList.add('hidden');
   });
@@ -84,7 +75,7 @@ function hideModal(modalId) {
 }
 
 function hideAllModals() {
-  ['trip-modal', 'category-modal', 'item-modal', 'delete-modal', 'photo-viewer-modal'].forEach(hideModal);
+  ['trip-modal', 'category-modal', 'item-modal', 'delete-modal', 'photo-viewer-modal', 'share-modal'].forEach(hideModal);
 }
 
 let toastTimeout;
@@ -374,7 +365,7 @@ async function deleteTrip(tripId) {
 }
 
 // =====================================================================
-//  DETALLE DE VIAJE
+//  DETALLE DE VIAJE (CON MALETA / MOCHILA Y LISTA DE COMPRAS)
 // =====================================================================
 function switchTripTab(tabName) {
   activeTripTab = tabName;
@@ -457,6 +448,15 @@ function updateTripDetailProgress(items) {
   const pct = total > 0 ? Math.round((packed / total) * 100) : 0;
   $('trip-detail-progress-bar').style.width = pct + '%';
   $('trip-detail-progress-text').textContent = `${packed}/${total} · ${pct}%`;
+
+  // Contadores de Maleta vs Mochila vs Por comprar
+  const maletaCount = items.filter(i => (i.location || 'maleta') === 'maleta').length;
+  const mochilaCount = items.filter(i => i.location === 'mochila').length;
+  const toBuyCount = items.filter(i => i.toBuy && !i.packed).length;
+
+  $('trip-count-maleta').textContent = maletaCount;
+  $('trip-count-mochila').textContent = mochilaCount;
+  $('trip-count-tobuy').textContent = toBuyCount;
 }
 
 // =====================================================================
@@ -493,6 +493,7 @@ function renderShoppingList(items) {
     const catLabel = cat ? `${cat.icon || '📦'} ${cat.name}` : 'General';
     const bgClass = isBought ? 'bg-emerald-50/70 border-emerald-200' : 'bg-white border-amber-200/80 hover:border-amber-300';
     const textClass = isBought ? 'line-through text-gray-400' : 'text-gray-900 font-semibold';
+    const locIcon = item.location === 'mochila' ? '🎒 Mochila' : '🧳 Maleta';
 
     return `
       <div class="flex items-center gap-3 p-3.5 rounded-xl border ${bgClass} transition-all shadow-sm">
@@ -506,6 +507,7 @@ function renderShoppingList(items) {
             <span class="text-sm ${textClass}">${item.name}</span>
             ${item.quantity > 1 ? `<span class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">×${item.quantity}</span>` : ''}
             <span class="text-[11px] text-gray-400 font-medium">(${catLabel})</span>
+            <span class="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium">${locIcon}</span>
           </div>
           ${item.notes ? `<p class="text-xs text-gray-400 mt-0.5 truncate">${item.notes}</p>` : ''}
         </div>
@@ -516,6 +518,56 @@ function renderShoppingList(items) {
       </div>
     `;
   }).join('');
+}
+
+// =====================================================================
+//  COMPARTIR LISTA DE LA COMPRA (SIN CUENTA)
+// =====================================================================
+function generateShareText() {
+  const items = allTripItems[currentTripId] || [];
+  const shoppingItems = items.filter(i => i.toBuy && !i.packed);
+  const tripName = currentTripData ? currentTripData.name : 'Mi Viaje';
+
+  if (shoppingItems.length === 0) {
+    return `🛒 Lista de compras para: ${tripName}\n\n🎉 ¡No hay nada pendiente por comprar!`;
+  }
+
+  let text = `🛒 *Lista de compras para:* ${tripName}\n`;
+  text += `----------------------------------------\n`;
+
+  shoppingItems.forEach(item => {
+    const cat = allTripCategories.find(c => c.id === item.categoryId);
+    const catLabel = cat ? ` (${cat.name})` : '';
+    const qty = item.quantity > 1 ? ` [x${item.quantity}]` : '';
+    text += `▫️ ${item.name}${qty}${catLabel}\n`;
+  });
+
+  text += `----------------------------------------\n`;
+  text += `✈️ Compartido desde Mi Maleta`;
+  return text;
+}
+
+function openShareModal() {
+  const text = generateShareText();
+  $('share-preview-text').textContent = text;
+  showModal('share-modal');
+}
+
+function shareViaWhatsApp() {
+  const text = generateShareText();
+  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
+}
+
+async function copyShareText() {
+  const text = generateShareText();
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('¡Lista copiada al portapapeles!');
+    hideModal('share-modal');
+  } catch (err) {
+    showToast('Selecciona y copia el texto del recuadro', 'info');
+  }
 }
 
 function updateCategoryCardsProgress(items) {
@@ -770,6 +822,9 @@ function renderSingleItemRow(item) {
   const isPacked = item.packed;
   const cardBorder = isPacked ? 'border-emerald-300 bg-emerald-50/40' : 'border-gray-200 bg-white hover:border-indigo-300';
   const nameClass = isPacked ? 'line-through text-gray-400' : 'text-gray-900';
+  const locBadge = item.location === 'mochila'
+    ? `<span class="inline-flex items-center gap-1 text-[10px] bg-sky-50 text-sky-700 border border-sky-100 px-1.5 py-0.5 rounded font-medium">🎒 Mochila</span>`
+    : `<span class="inline-flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-medium">🧳 Maleta</span>`;
   
   const photoHtml = item.photoUrl
     ? `<div class="p-2.5 pb-0">
@@ -785,7 +840,7 @@ function renderSingleItemRow(item) {
        </div>`;
 
   const toBuyBadge = item.toBuy && !isPacked
-    ? `<span class="inline-block text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold mt-0.5">🛒 Comprar</span>`
+    ? `<span class="inline-block text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold">🛒 Comprar</span>`
     : '';
 
   const notesHtml = item.notes
@@ -804,8 +859,11 @@ function renderSingleItemRow(item) {
               <span class="font-semibold text-xs sm:text-sm ${nameClass} leading-tight block truncate">
                 ${item.name}
               </span>
-              ${item.quantity > 1 ? `<span class="text-[11px] text-indigo-600 font-bold">Cant: ${item.quantity}</span>` : ''}
-              <div>${toBuyBadge}</div>
+              <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+                ${locBadge}
+                ${item.quantity > 1 ? `<span class="text-[11px] text-indigo-600 font-bold">×${item.quantity}</span>` : ''}
+                ${toBuyBadge}
+              </div>
               ${notesHtml}
             </div>
           </div>
@@ -826,6 +884,17 @@ function renderSingleItemRow(item) {
 // =====================================================================
 //  ELEMENTOS (ITEMS)
 // =====================================================================
+function setItemLocationUI(loc) {
+  $('item-location-input').value = loc;
+  document.querySelectorAll('#item-location-selector .loc-btn').forEach(btn => {
+    if (btn.dataset.loc === loc) {
+      btn.className = 'loc-btn py-2.5 px-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/70 text-indigo-900 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition';
+    } else {
+      btn.className = 'loc-btn py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-600 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition hover:bg-gray-50';
+    }
+  });
+}
+
 function openItemModal(itemData = null) {
   $('item-form').reset();
   $('item-id-hidden').value = '';
@@ -844,6 +913,8 @@ function openItemModal(itemData = null) {
     $('item-quantity-input').value = itemData.quantity || 1;
     $('item-notes-input').value = itemData.notes || '';
     $('item-to-buy').checked = !!itemData.toBuy;
+    setItemLocationUI(itemData.location || 'maleta');
+
     if (itemData.photoUrl) {
       $('item-existing-photo').value = itemData.photoUrl;
       $('item-photo-preview').src = itemData.photoUrl;
@@ -851,6 +922,7 @@ function openItemModal(itemData = null) {
     }
   } else {
     $('item-modal-title').textContent = 'Nuevo Elemento';
+    setItemLocationUI('maleta');
   }
   showModal('item-modal');
   $('item-name-input').focus();
@@ -898,6 +970,7 @@ async function saveItemForm() {
     const data = {
       name,
       subcategory: $('item-subcategory-input').value.trim(),
+      location: $('item-location-input').value || 'maleta',
       quantity: parseInt($('item-quantity-input').value) || 1,
       notes: $('item-notes-input').value.trim(),
       toBuy: $('item-to-buy').checked,
@@ -1005,6 +1078,18 @@ function setupEventListeners() {
 
   $('tab-categories-btn').addEventListener('click', () => switchTripTab('categories'));
   $('tab-shopping-btn').addEventListener('click', () => switchTripTab('shopping'));
+
+  // Botones de Compartir Lista
+  $('share-shopping-btn').addEventListener('click', openShareModal);
+  $('close-share-modal').addEventListener('click', () => hideModal('share-modal'));
+  $('share-whatsapp-btn').addEventListener('click', shareViaWhatsApp);
+  $('share-copy-btn').addEventListener('click', copyShareText);
+
+  // Selector de Ubicación (Maleta / Mochila) en el Modal
+  $('item-location-selector').addEventListener('click', (e) => {
+    const btn = e.target.closest('.loc-btn');
+    if (btn) setItemLocationUI(btn.dataset.loc);
+  });
 
   $('add-trip-btn').addEventListener('click', () => openTripModal());
   $('trip-form').addEventListener('submit', (e) => { e.preventDefault(); saveTripForm(); });
@@ -1115,7 +1200,7 @@ function setupEventListeners() {
 
   $('photo-viewer-modal').addEventListener('click', () => hideModal('photo-viewer-modal'));
 
-  ['trip-modal', 'category-modal', 'item-modal', 'delete-modal'].forEach(modalId => {
+  ['trip-modal', 'category-modal', 'item-modal', 'delete-modal', 'share-modal'].forEach(modalId => {
     $(modalId).addEventListener('click', (e) => {
       if (e.target === $(modalId)) hideModal(modalId);
     });

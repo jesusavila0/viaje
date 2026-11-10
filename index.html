@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mi Maleta ✈️</title>
 
-  <!-- Anti-caché sin romper IndexedDB -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
-  <!-- Configuración PWA / iPhone -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f46e5">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,7 +17,6 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧳</text></svg>">
   <link rel="canonical" href="./">
 
-  <!-- Fuentes y Tailwind -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -54,35 +51,16 @@
     }
     #auth-screen { display: none !important; }
     .modal-enter { animation: modalIn 0.25s ease-out; }
-    @keyframes modalIn {
-      from { opacity: 0; transform: scale(0.95) translateY(10px); }
-      to { opacity: 1; transform: scale(1) translateY(0); }
-    }
+    @keyframes modalIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
     .fade-in { animation: fadeIn 0.3s ease-out; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .progress-bar { transition: width 0.5s ease-in-out; }
     input[type="checkbox"] { accent-color: #4f46e5; }
-    .toast-enter { animation: toastIn 0.3s ease-out; }
-    .toast-exit { animation: toastOut 0.3s ease-in forwards; }
-    @keyframes toastIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes toastOut {
-      from { opacity: 1; transform: translateY(0); }
-      to { opacity: 0; transform: translateY(20px); }
-    }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans select-none" style="background-color: #f9fafb;">
 
-
-  <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
-
-  <!-- PANTALLA DE AUTH -->
+  <!-- ==================== PANTALLA DE AUTH ==================== -->
   <div id="auth-screen" class="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 modal-enter">
       <div class="text-center mb-8">
@@ -156,7 +134,7 @@
     </div>
   </div>
 
-  <!-- PANTALLA PRINCIPAL -->
+  <!-- ==================== PANTALLA PRINCIPAL ==================== -->
   <div id="app-screen" class="hidden min-h-screen">
     <nav class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
       <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -207,6 +185,8 @@
               <button id="delete-trip-btn" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition" title="Eliminar">🗑️</button>
             </div>
           </div>
+          
+          <!-- Barra de progreso general -->
           <div class="mt-4">
             <div class="flex justify-between text-sm text-gray-500 mb-1.5">
               <span>Progreso general de equipaje</span>
@@ -216,8 +196,27 @@
               <div id="trip-detail-progress-bar" class="bg-indigo-600 h-2.5 rounded-full progress-bar" style="width: 0%"></div>
             </div>
           </div>
+
+          <!-- Resumen de distribución: Maleta vs Mochila -->
+          <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-around text-xs text-gray-600">
+            <div class="flex items-center gap-1.5">
+              <span class="text-base">🧳</span>
+              <span>Maleta: <strong id="trip-count-maleta" class="text-gray-900">0</strong></span>
+            </div>
+            <div class="h-4 w-px bg-gray-200"></div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-base">🎒</span>
+              <span>Mochila: <strong id="trip-count-mochila" class="text-gray-900">0</strong></span>
+            </div>
+            <div class="h-4 w-px bg-gray-200"></div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-base">🛒</span>
+              <span>Por comprar: <strong id="trip-count-tobuy" class="text-amber-700">0</strong></span>
+            </div>
+          </div>
         </div>
 
+        <!-- Pestañas de Navegación del Viaje -->
         <div class="flex border-b border-gray-200 mb-6">
           <button id="tab-categories-btn" class="py-3 px-5 border-b-2 border-indigo-600 text-indigo-600 font-bold text-sm sm:text-base flex items-center gap-2 transition">
             <span>📂</span> Categorías
@@ -228,6 +227,7 @@
           </button>
         </div>
 
+        <!-- Pestaña 1: Categorías -->
         <div id="trip-categories-tab-content">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold text-gray-800">Categorías de equipaje</h3>
@@ -244,17 +244,26 @@
           </div>
         </div>
 
+        <!-- Pestaña 2: Lista de la Compra con botón de compartir -->
         <div id="trip-shopping-tab-content" class="hidden">
-          <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 mb-5 flex items-center justify-between">
+          <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h4 class="font-bold text-amber-900 text-sm sm:text-base flex items-center gap-1.5">
                 <span>🛒</span> Artículos pendientes de comprar
               </h4>
-              <p class="text-xs text-amber-700 mt-0.5">Tacha los artículos que vayas comprando directamente desde aquí.</p>
+              <p class="text-xs text-amber-700 mt-0.5">Tacha lo que compres o comparte la lista con quien quieras.</p>
             </div>
-            <span id="shopping-tab-summary" class="text-xs sm:text-sm font-semibold bg-amber-200/70 text-amber-900 px-3 py-1 rounded-full">
-              0 pendientes
-            </span>
+            <div class="flex items-center gap-2 self-end sm:self-auto">
+              <span id="shopping-tab-summary" class="text-xs font-semibold bg-amber-200/70 text-amber-900 px-3 py-1.5 rounded-xl">
+                0 pendientes
+              </span>
+              <!-- BOTÓN COMPARTIR LISTA DE COMPRAS -->
+              <button id="share-shopping-btn"
+                class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition active:scale-[0.97]"
+                title="Compartir por WhatsApp o copiar">
+                <span>📤</span> Compartir lista
+              </button>
+            </div>
           </div>
           <div id="shopping-list-container" class="space-y-2.5"></div>
           <div id="shopping-list-empty" class="hidden text-center py-16">
@@ -301,7 +310,7 @@
     </main>
   </div>
 
-  <!-- MODALES -->
+  <!-- MODAL: VIAJE -->
   <div id="trip-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 modal-enter">
       <div class="flex items-center justify-between mb-5">
@@ -340,6 +349,7 @@
     </div>
   </div>
 
+  <!-- MODAL: CATEGORÍA -->
   <div id="category-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 modal-enter">
       <div class="flex items-center justify-between mb-5">
@@ -366,6 +376,7 @@
     </div>
   </div>
 
+  <!-- MODAL: ELEMENTO (CON SELECTOR DE MALETA / MOCHILA) -->
   <div id="item-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 modal-enter max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between mb-5">
@@ -388,6 +399,22 @@
             class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
           <datalist id="subcategories-datalist"></datalist>
           <p class="text-xs text-gray-400 mt-1">Si usas el mismo nombre se agruparán juntos automáticamente.</p>
+        </div>
+
+        <!-- 👇 SELECTOR DE UBICACIÓN: ¿DÓNDE LO LLEVAS? 👇 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">¿Dónde lo llevas?</label>
+          <input type="hidden" id="item-location-input" value="maleta">
+          <div class="grid grid-cols-2 gap-2" id="item-location-selector">
+            <button type="button" data-loc="maleta"
+              class="loc-btn py-2.5 px-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/70 text-indigo-900 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition">
+              <span class="text-lg">🧳</span> Maleta
+            </button>
+            <button type="button" data-loc="mochila"
+              class="loc-btn py-2.5 px-3 rounded-xl border-2 border-gray-200 bg-white text-gray-600 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition hover:bg-gray-50">
+              <span class="text-lg">🎒</span> Mochila
+            </button>
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -439,6 +466,37 @@
     </div>
   </div>
 
+  <!-- MODAL: COMPARTIR LISTA DE LA COMPRA -->
+  <div id="share-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 modal-enter">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <span>📤</span> Compartir Lista
+        </h3>
+        <button id="close-share-modal" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <p class="text-xs text-gray-500 mb-4">
+        Envía los artículos pendientes a quien quieras sin necesidad de que tenga cuenta.
+      </p>
+
+      <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 mb-4 max-h-48 overflow-y-auto">
+        <pre id="share-preview-text" class="text-xs text-gray-700 whitespace-pre-wrap font-sans"></pre>
+      </div>
+
+      <div class="space-y-2">
+        <button id="share-whatsapp-btn"
+          class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-2 transition active:scale-[0.98]">
+          <span>💬</span> Enviar por WhatsApp
+        </button>
+        <button id="share-copy-btn"
+          class="w-full py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-xl text-sm flex items-center justify-center gap-2 transition active:scale-[0.98]">
+          <span>📋</span> Copiar al portapapeles
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIRMACIÓN ELIMINAR -->
   <div id="delete-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 modal-enter">
       <div class="text-center">
@@ -459,10 +517,12 @@
     </div>
   </div>
 
+  <!-- MODAL: VER FOTO -->
   <div id="photo-viewer-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 cursor-pointer">
     <img id="photo-viewer-img" class="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain" alt="Foto">
   </div>
 
+  <!-- TOAST -->
   <div id="toast-notification" class="hidden fixed bottom-6 right-6 z-50 max-w-sm">
     <div class="bg-gray-900 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-3">
       <span id="toast-icon" class="text-lg"></span>
@@ -470,14 +530,6 @@
     </div>
   </div>
 
-  <!-- Carga directa y estable (sin Date.now() que corrompa la sesión de iOS) -->
-  <script type="module" src="js/app.js"></script>
-
-  <!-- Service Worker estable (se registra una sola vez de forma nativa) -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
-    }
-  </script>
+  <script type="module" src="./js/app.js"></script>
 </body>
 </html>
