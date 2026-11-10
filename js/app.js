@@ -1,5 +1,5 @@
 // =====================================================================
-//  Mi Maleta ✈️ — Con Ubicación (Maleta/Mochila) y Compartir Lista
+//  Mi Maleta ✈️ — Completo con Compartir Enlace Público Interactivo
 // =====================================================================
 
 import { auth, db, googleProvider } from './firebase-init.js';
@@ -8,7 +8,7 @@ import {
   signInWithPopup, signOut, updateProfile
 } from 'firebase/auth';
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc, query, where,
+  collection, doc, addDoc, setDoc, getDoc, updateDoc, deleteDoc, query, where,
   onSnapshot, getDocs
 } from 'firebase/firestore';
 
@@ -46,6 +46,7 @@ let unsubCategories = null;
 let unsubTripItems = null;
 let deleteCallback = null;
 let pendingPhotoFile = null;
+let activeShareUrl = '';
 
 // =====================================================================
 //  REFS HELPERS
@@ -104,6 +105,163 @@ function confirmDelete(message, callback) {
   $('delete-message').textContent = message;
   deleteCallback = callback;
   showModal('delete-modal');
+}
+
+// =====================================================================
+//  COMPARTIR: MODO INVITADO PÚBLICO (ABIERTO POR ENLACE SIN CUENTA)
+// =====================================================================
+async function checkSharedLink() {
+  const params = new URLSearchParams(window.location.search);
+  const shareId = params.get('share');
+  if (!shareId) return false;
+
+  // Si viene con ?share=ID, mostramos directamente la vista de invitado
+  $('auth-screen').style.setProperty('display', 'none', 'important');
+  $('app-screen').style.setProperty('display', 'none', 'important');
+  $('shared-public-view').classList.remove('hidden');
+
+  try {
+    const docRef = doc(db, 'shared_lists', shareId);
+    
+    // Escuchar en tiempo real para que si alguien tacha algo se actualice
+    onSnapshot(docRef, (docSnap) => {
+      if (!docSnap.exists()) {
+        $('shared-trip-title').textContent = "Lista no encontrada";
+        $('shared-trip-dest').textContent = "El enlace no es válido o ha expirado.";
+        return;
+      }
+
+      const data = docSnap.data();
+      $('shared-trip-title').textContent = data.tripName || "Lista de la compra";
+      $('shared-trip-dest').textContent = data.destination ? `📍 ${data.destination}` : '';
+
+      const items = data.items || [];
+      const container = $('shared-items-container');
+      const emptyState = $('shared-empty-state');
+
+      if (items.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      // Ordenar: pendientes arriba, comprados abajo
+      items.sort((a, b) => (a.packed === b.packed ? 0 : a.packed ? 1 : -1));
+
+      container.innerHTML = items.map((item, idx) => {
+        const isBought = item.packed;
+        const bg = isBought ? 'bg-emerald-50/70 border-emerald-200' : 'bg-white border-amber-200/80';
+        const txt = isBought ? 'line-through text-gray-400' : 'text-gray-900 font-bold';
+
+        return `
+          <div class="flex items-center gap-3 p-3.5 rounded-2xl border ${bg} shadow-sm transition-all">
+            <input type="checkbox" class="shared-toggle-cb w-5 h-5 rounded cursor-pointer flex-shrink-0"
+                   data-item-idx="${idx}" ${isBought ? 'checked' : ''}>
+            ${item.photoUrl ? `<img src="${item.photoUrl}" class="w-11 h-11 object-contain rounded-xl bg-gray-50 border border-gray-100 flex-shrink-0" alt="foto">` : ''}
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm ${txt}">${item.name}</span>
+                ${item.quantity > 1 ? `<span class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">×${item.quantity}</span>` : ''}
+                ${item.category ? `<span class="text-xs text-gray-400">(${item.category})</span>` : ''}
+              </div>
+              ${item.notes ? `<p class="text-xs text-gray-400 mt-0.5 truncate">${item.notes}</p>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Listener para que el invitado pueda tachar cosas en la nube
+      container.querySelectorAll('.shared-toggle-cb').forEach(cb => {
+        cb.addEventListener('change', async (e) => {
+          const clickedIdx = parseInt(e.target.dataset.itemIdx);
+          items[clickedIdx].packed = e.target.checked;
+          await updateDoc(docRef, { items });
+        });
+      });
+    });
+
+  } catch (err) {
+    console.error("Error al cargar lista compartida:", err);
+    $('shared-trip-title').textContent = "Error al cargar la lista";
+  }
+
+  return true;
+}
+
+// =====================================================================
+//  CREAR Y COMPARTIR EL ENLACE PÚBLICO
+// =====================================================================
+async function handleCreateShareLink() {
+  const items = allTripItems[currentTripId] || [];
+  const shoppingItems = items.filter(i => i.toBuy);
+
+  if (shoppingItems.length === 0) {
+    showToast('No hay artículos marcados "Por comprar"', 'info');
+    return;
+  }
+
+  const shareBtn = $('share-shopping-btn');
+  shareBtn.disabled = true;
+  shareBtn.innerHTML = `<span>⏳</span> Generando...`;
+
+  try {
+    // Generamos un ID único y limpio para el viaje
+    const shareId = `${currentTripId}_shopping`;
+
+    // Preparamos los datos limpios para el invitado
+    const sharedData = {
+      tripName: currentTripData ? currentTripData.name : 'Mi Viaje',
+      destination: currentTripData ? currentTripData.destination : '',
+      updatedAt: Date.now(),
+      items: shoppingItems.map(item => {
+        const cat = allTripCategories.find(c => c.id === item.categoryId);
+        return {
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity || 1,
+          notes: item.notes || '',
+          photoUrl: item.photoUrl || '',
+          category: cat ? cat.name : 'General',
+          packed: !!item.packed
+        };
+      })
+    };
+
+    // Guardamos en la colección pública de Firestore
+    await setDoc(doc(db, 'shared_lists', shareId), sharedData);
+
+    // Creamos la URL completa
+    const baseUrl = window.location.href.split('?')[0].split('#')[0];
+    activeShareUrl = `${baseUrl}?share=${shareId}`;
+
+    $('share-url-text').textContent = activeShareUrl;
+    showModal('share-modal');
+
+  } catch (err) {
+    console.error("Error al compartir:", err);
+    showToast('Error al generar enlace', 'error');
+  } finally {
+    shareBtn.disabled = false;
+    shareBtn.innerHTML = `<span>🔗</span> Compartir enlace`;
+  }
+}
+
+async function copyShareUrl() {
+  try {
+    await navigator.clipboard.writeText(activeShareUrl);
+    showToast('¡Enlace web copiado!');
+    hideModal('share-modal');
+  } catch (e) {
+    showToast('Copia el enlace manualmente del recuadro', 'info');
+  }
+}
+
+function shareUrlViaWhatsApp() {
+  const tripName = currentTripData ? currentTripData.name : 'este viaje';
+  const msg = `¡Hola! Aquí tienes la lista interactiva de cosas para comprar para ${tripName}: ${activeShareUrl}`;
+  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
 }
 
 // =====================================================================
@@ -365,7 +523,7 @@ async function deleteTrip(tripId) {
 }
 
 // =====================================================================
-//  DETALLE DE VIAJE (CON MALETA / MOCHILA Y LISTA DE COMPRAS)
+//  DETALLE DE VIAJE
 // =====================================================================
 function switchTripTab(tabName) {
   activeTripTab = tabName;
@@ -449,7 +607,6 @@ function updateTripDetailProgress(items) {
   $('trip-detail-progress-bar').style.width = pct + '%';
   $('trip-detail-progress-text').textContent = `${packed}/${total} · ${pct}%`;
 
-  // Contadores de Maleta vs Mochila vs Por comprar
   const maletaCount = items.filter(i => (i.location || 'maleta') === 'maleta').length;
   const mochilaCount = items.filter(i => i.location === 'mochila').length;
   const toBuyCount = items.filter(i => i.toBuy && !i.packed).length;
@@ -518,56 +675,6 @@ function renderShoppingList(items) {
       </div>
     `;
   }).join('');
-}
-
-// =====================================================================
-//  COMPARTIR LISTA DE LA COMPRA (SIN CUENTA)
-// =====================================================================
-function generateShareText() {
-  const items = allTripItems[currentTripId] || [];
-  const shoppingItems = items.filter(i => i.toBuy && !i.packed);
-  const tripName = currentTripData ? currentTripData.name : 'Mi Viaje';
-
-  if (shoppingItems.length === 0) {
-    return `🛒 Lista de compras para: ${tripName}\n\n🎉 ¡No hay nada pendiente por comprar!`;
-  }
-
-  let text = `🛒 *Lista de compras para:* ${tripName}\n`;
-  text += `----------------------------------------\n`;
-
-  shoppingItems.forEach(item => {
-    const cat = allTripCategories.find(c => c.id === item.categoryId);
-    const catLabel = cat ? ` (${cat.name})` : '';
-    const qty = item.quantity > 1 ? ` [x${item.quantity}]` : '';
-    text += `▫️ ${item.name}${qty}${catLabel}\n`;
-  });
-
-  text += `----------------------------------------\n`;
-  text += `✈️ Compartido desde Mi Maleta`;
-  return text;
-}
-
-function openShareModal() {
-  const text = generateShareText();
-  $('share-preview-text').textContent = text;
-  showModal('share-modal');
-}
-
-function shareViaWhatsApp() {
-  const text = generateShareText();
-  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-  window.open(url, '_blank');
-}
-
-async function copyShareText() {
-  const text = generateShareText();
-  try {
-    await navigator.clipboard.writeText(text);
-    showToast('¡Lista copiada al portapapeles!');
-    hideModal('share-modal');
-  } catch (err) {
-    showToast('Selecciona y copia el texto del recuadro', 'info');
-  }
 }
 
 function updateCategoryCardsProgress(items) {
@@ -1084,14 +1191,13 @@ function setupEventListeners() {
   $('tab-categories-btn').addEventListener('click', () => switchTripTab('categories'));
   $('tab-shopping-btn').addEventListener('click', () => switchTripTab('shopping'));
 
-  // Botones de Compartir Lista
-  $('share-shopping-btn').addEventListener('click', openShareModal);
+  // Botón para generar el enlace compartido
+  $('share-shopping-btn').addEventListener('click', handleCreateShareLink);
   $('close-share-modal').addEventListener('click', () => hideModal('share-modal'));
-  $('share-whatsapp-btn').addEventListener('click', shareViaWhatsApp);
-  $('share-copy-btn').addEventListener('click', copyShareText);
+  $('share-copy-btn').addEventListener('click', copyShareUrl);
+  $('share-whatsapp-btn').addEventListener('click', shareUrlViaWhatsApp);
 
-  // Selector de Ubicación (Maleta / Mochila) en el Modal
-  // Clic directo en cada botón sin fallos de target
+  // Selector de Ubicación (Maleta / Mochila)
   $('btn-loc-maleta').addEventListener('click', () => setItemLocationUI('maleta'));
   $('btn-loc-mochila').addEventListener('click', () => setItemLocationUI('mochila'));
 
@@ -1216,19 +1322,25 @@ function setupEventListeners() {
 }
 
 // =====================================================================
-//  INICIALIZACIÓN LIMPIA (SIN PANTALLAS DE CARGA)
+//  INICIALIZACIÓN
 // =====================================================================
 setupEventListeners();
 
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    currentUser = user;
-    showAppScreen(user);
-  } else {
-    currentUser = null;
-    currentTripId = null;
-    currentCategoryId = null;
-    cleanupAllListeners();
-    showAuthScreen();
+// Primero comprueba si viene de un enlace compartido público
+checkSharedLink().then((isShared) => {
+  // Si no es un enlace compartido, funciona como la app normal
+  if (!isShared) {
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        showAppScreen(user);
+      } else {
+        currentUser = null;
+        currentTripId = null;
+        currentCategoryId = null;
+        cleanupAllListeners();
+        showAuthScreen();
+      }
+    });
   }
 });
