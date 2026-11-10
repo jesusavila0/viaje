@@ -1,5 +1,5 @@
 // =====================================================================
-//  Mi Maleta ✈️ — Completo con Enlaces Clickeables en Notas y Lista Pública
+//  Mi Maleta ✈️ — Completo con Quitar de Compras y Enlaces en Notas
 // =====================================================================
 
 import { auth, db, googleProvider } from './firebase-init.js';
@@ -67,7 +67,7 @@ function formatNotesWithLinks(text) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 
-  const urlRegex = /((https?:\/\/|www\.)[^\s]+)/gi;
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9][-a-zA-Z0-9]*\.(?:com|es|org|net|io|co|shop|store|eu|uk|it|fr|de|to|app|link|cat|me|info|biz|online|site|tech|dev|cloud)(?:\/[^\s]*)?)/gi;
 
   return escaped.replace(urlRegex, (rawUrl) => {
     let cleanUrl = rawUrl;
@@ -76,7 +76,7 @@ function formatNotesWithLinks(text) {
       trailing = cleanUrl.slice(-1) + trailing;
       cleanUrl = cleanUrl.slice(0, -1);
     }
-    const href = cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`;
+    const href = /^https?:\/\//i.test(cleanUrl) ? cleanUrl : `https://${cleanUrl}`;
     return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 underline font-semibold break-all hover:text-indigo-800 inline-block" onclick="event.stopPropagation()">🔗 ${cleanUrl}</a>${trailing}`;
   });
 }
@@ -687,12 +687,41 @@ function renderShoppingList(items) {
           ${item.notes ? `<div class="text-xs text-gray-500 mt-1 break-words">${formatNotesWithLinks(item.notes)}</div>` : ''}
         </div>
 
-        <button class="edit-item-btn p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-gray-100 text-xs transition flex-shrink-0" data-item-edit="${item.id}">
-          ✏️
-        </button>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <button class="edit-item-btn p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-gray-100 text-xs transition" data-item-edit="${item.id}" title="Editar">
+            ✏️
+          </button>
+          <button class="remove-shopping-btn p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg text-sm font-bold transition" data-shopping-remove="${item.id}" title="Quitar de compras (se queda en tu maleta)">
+            ✕
+          </button>
+        </div>
       </div>
     `;
   }).join('');
+}
+
+// =====================================================================
+//  QUITAR DE LA LISTA DE COMPRAS (MANTENER EN LA MALETA)
+// =====================================================================
+async function removeFromShoppingList(itemId) {
+  try {
+    // 1. Desmarcamos 'toBuy' del elemento para que siga existiendo en el viaje y la maleta
+    await updateDoc(userDoc('items', itemId), { toBuy: false });
+    showToast('Quitado de la compra (sigue en tu maleta)');
+
+    // 2. Si hay un enlace compartido activo en la nube, lo actualizamos también
+    const shareId = `${currentTripId}_shopping`;
+    const shareDocRef = doc(db, 'shared_lists', shareId);
+    const snap = await getDoc(shareDocRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      const updatedItems = (data.items || []).filter(i => i.id !== itemId);
+      await updateDoc(shareDocRef, { items: updatedItems });
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('Error al quitar de la compra', 'error');
+  }
 }
 
 function updateCategoryCardsProgress(items) {
@@ -1286,6 +1315,13 @@ function setupEventListeners() {
 
   const handleItemActions = (e) => {
     if (e.target.tagName === 'A' || e.target.closest('a')) {
+      return;
+    }
+
+    // Botón para quitar de la lista de compras (sin borrar de la maleta)
+    const remShopBtn = e.target.closest('.remove-shopping-btn');
+    if (remShopBtn) {
+      removeFromShoppingList(remShopBtn.dataset.shoppingRemove);
       return;
     }
 
